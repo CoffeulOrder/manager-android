@@ -284,6 +284,12 @@
     <string name="option_warning_last_choices">%1$s%2$s 필수 옵션이에요. %3$s까지 품절되면 메뉴 %4$d개를 팔 수 없어요.</string>
     <string name="option_warning_all_gone">%1$s 항목이 모두 품절이라 메뉴 %2$d개를 팔 수 없어요.</string>
 
+    <!-- 인터넷 연결 -->
+    <string name="snackbar_offline">인터넷 연결이 끊겼어요</string>
+    <string name="snackbar_reconnected">인터넷이 다시 연결됐어요.</string>
+    <string name="snackbar_offline_blocked_orders">인터넷이 끊겨서 새 주문을 받을 수 없어요</string>
+    <string name="snackbar_offline_blocked_change">인터넷이 끊겨서 바꿀 수 없어요</string>
+
     <!-- 거절 사유 (이 순서로 표시) -->
     <string name="reason_out_of_stock">품절 또는 재료 소진</string>
     <string name="reason_out_of_stock_short">품절</string>

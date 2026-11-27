@@ -53,6 +53,8 @@ fun ActionButton(
     height: Dp = 48.dp,
     radius: Dp = 14.dp,
     enabled: Boolean = true,
+    /** 흐리게 보이지만 눌린다. 눌렀을 때 왜 안 되는지 알려줄 때 쓴다(인터넷 끊김). */
+    dimmed: Boolean = false,
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -60,14 +62,14 @@ fun ActionButton(
             .height(height)
             .clip(RoundedCornerShape(radius))
             // DS Disabled: 색과 관계없이 연한 회색 바탕 + 흐린 글자
-            .background(if (enabled) tone.background else OrmoColors.FillNeutralWeak)
+            .background(if (enabled && !dimmed) tone.background else OrmoColors.FillNeutralWeak)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp),
     ) {
         Text(
             text = text,
             style = OrmoType.BodyLgSemibold,
-            color = if (enabled) tone.content else OrmoColors.Placeholder,
+            color = if (enabled && !dimmed) tone.content else OrmoColors.Placeholder,
             maxLines = 1,
         )
     }

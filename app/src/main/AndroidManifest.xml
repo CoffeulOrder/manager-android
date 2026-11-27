@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 아직 네트워크를 쓰지 않아 INTERNET 권한을 선언하지 않는다. 서버를 붙일 때 추가한다. -->
+    <!-- 인터넷 연결 상태를 보기 위한 권한. 아직 통신은 하지 않아 INTERNET 권한은 서버를 붙일 때 추가한다. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="false"

@@ -71,6 +71,8 @@ fun BoardScreen(
     onNewestPendingShown: () -> Unit = {},
     /** 마감 중에는 접수 대기의 빈 문구가 다르다. */
     storeClosed: Boolean = false,
+    /** 인터넷이 끊기면 카드 버튼을 흐리게 보인다. */
+    offline: Boolean = false,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -90,7 +92,7 @@ fun BoardScreen(
             ),
             scrollToEnd = showNewestPending,
             onScrolledToEnd = onNewestPendingShown,
-        ) { order -> PendingCard(order, now, actions) }
+        ) { order -> PendingCard(order, now, actions, offline) }
 
         OrderColumn(
             title = stringResource(R.string.column_preparing),
@@ -98,7 +100,7 @@ fun BoardScreen(
             countColor = OrmoColors.TextTertiary,
             emptyIcon = R.drawable.ic_cup,
             emptyText = stringResource(R.string.empty_preparing),
-        ) { order -> PreparingCard(order, now, actions) }
+        ) { order -> PreparingCard(order, now, actions, offline) }
 
         OrderColumn(
             title = stringResource(R.string.column_ready),
@@ -106,12 +108,12 @@ fun BoardScreen(
             countColor = OrmoColors.TextTertiary,
             emptyIcon = R.drawable.ic_tag,
             emptyText = stringResource(R.string.empty_ready),
-        ) { order -> ReadyCard(order, now, actions) }
+        ) { order -> ReadyCard(order, now, actions, offline) }
     }
 }
 
 @Composable
-private fun PendingCard(order: Order, now: Long, actions: BoardActions) {
+private fun PendingCard(order: Order, now: Long, actions: BoardActions, offline: Boolean) {
     val remaining = (order.createdAt + AUTO_CANCEL_MILLIS - now).coerceIn(0L, AUTO_CANCEL_MILLIS)
     OrderCard(
         order = order,
@@ -122,19 +124,21 @@ private fun PendingCard(order: Order, now: Long, actions: BoardActions) {
             text = stringResource(R.string.action_reject),
             tone = ButtonTone.NEUTRAL_WEAK,
             onClick = { actions.onReject(order.orderNo) },
+            dimmed = offline,
             modifier = Modifier.weight(1f),
         )
         ActionButton(
             text = stringResource(R.string.action_accept),
             tone = ButtonTone.BRAND,
             onClick = { actions.onAccept(order.orderNo) },
+            dimmed = offline,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun PreparingCard(order: Order, now: Long, actions: BoardActions) {
+private fun PreparingCard(order: Order, now: Long, actions: BoardActions, offline: Boolean) {
     val minutes = elapsedMinutes(order.acceptedAt ?: order.updatedAt, now).toInt()
     OrderCard(
         order = order,
@@ -149,13 +153,14 @@ private fun PreparingCard(order: Order, now: Long, actions: BoardActions) {
             text = stringResource(R.string.action_cooked),
             tone = ButtonTone.NEUTRAL,
             onClick = { actions.onCooked(order.orderNo) },
+            dimmed = offline,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun ReadyCard(order: Order, now: Long, actions: BoardActions) {
+private fun ReadyCard(order: Order, now: Long, actions: BoardActions, offline: Boolean) {
     val readyAt = order.readyAt ?: order.updatedAt
     val overdue = now - readyAt >= NO_SHOW_MILLIS
     val minutes = elapsedMinutes(readyAt, now).toInt()
@@ -174,6 +179,7 @@ private fun ReadyCard(order: Order, now: Long, actions: BoardActions) {
                 text = stringResource(R.string.action_clean_up),
                 tone = ButtonTone.NEUTRAL_WEAK,
                 onClick = { actions.onNoShow(order.orderNo) },
+                dimmed = offline,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -181,6 +187,7 @@ private fun ReadyCard(order: Order, now: Long, actions: BoardActions) {
             text = stringResource(R.string.action_picked_up),
             tone = ButtonTone.NEUTRAL,
             onClick = { actions.onPickedUp(order.orderNo) },
+            dimmed = offline,
             modifier = Modifier.weight(1f),
         )
     }
