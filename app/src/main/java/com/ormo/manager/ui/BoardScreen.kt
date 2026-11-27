@@ -2,6 +2,7 @@ package com.ormo.manager.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -40,6 +41,7 @@ import com.ormo.manager.R
 import com.ormo.manager.domain.AUTO_CANCEL_MILLIS
 import com.ormo.manager.domain.NO_SHOW_MILLIS
 import com.ormo.manager.domain.Order
+import com.ormo.manager.domain.OrderStatus
 import com.ormo.manager.domain.elapsedMinutes
 import com.ormo.manager.domain.formatCountdown
 import com.ormo.manager.ui.theme.OrmoColors
@@ -114,6 +116,15 @@ fun BoardScreen(
 
 @Composable
 private fun PendingCard(order: Order, now: Long, actions: BoardActions, offline: Boolean) {
+    if (order.status == OrderStatus.CUSTOMER_CANCELED) {
+        OrderCard(
+            order = order,
+            statusText = stringResource(R.string.status_customer_canceled),
+            statusColor = OrmoColors.TextDanger,
+            canceled = true,
+        ) {}
+        return
+    }
     val remaining = (order.createdAt + AUTO_CANCEL_MILLIS - now).coerceIn(0L, AUTO_CANCEL_MILLIS)
     OrderCard(
         order = order,
@@ -269,7 +280,10 @@ private fun ScrollableCards(
             contentPadding = PaddingValues(bottom = if (orders.size > 1) 64.dp else 0.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(orders, key = { it.orderNo }) { order -> card(order) }
+            items(orders, key = { it.orderNo }) { order ->
+                // 빠지는 카드는 400ms 동안 흐려진다.
+                Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = tween(400))) { card(order) }
+            }
         }
         AnimatedVisibility(
             visible = hasHiddenCards,

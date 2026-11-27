@@ -47,6 +47,9 @@ sealed interface OrderDialog {
 
     /** 수락/거절하려는데 이미 자동 취소된 주문. [확인]을 눌러야 닫힌다. */
     data class Expired(override val order: Order) : OrderDialog
+
+    /** 처리하려는데 고객이 먼저 취소한 주문(Figma 1.3.5). [확인]을 눌러야 닫힌다. */
+    data class CustomerCanceled(override val order: Order) : OrderDialog
 }
 
 /** 영업 상태를 바꿀 때 뜨는 확인창 */
@@ -121,6 +124,9 @@ sealed interface OrderEvent {
 
     data object Reconnected : OrderEvent
 
+    /** 접수 대기를 고객이 취소했다. 환불은 서버가 하므로 매장에서 할 일은 없다. */
+    data class CustomerCanceled(val pickupNo: Int) : OrderEvent
+
     /** [OrderViewModel.retry]로 다시 시도할 수 있다. */
     data class PaymentCancelFailed(val orderNo: String, val pickupNo: Int) : OrderEvent
 }
@@ -158,6 +164,12 @@ class OrderViewModel(
 
     private var arrivalSeq = 0
 
+    /** 고객이 취소해 곧 보드에서 뺄 주문. 그동안은 접수 대기에 취소된 모습으로 남긴다. */
+    private val leaving = MutableStateFlow<Set<String>>(emptySet())
+
+    /** 직전에 접수 대기였던 주문. 여기서 "고객 취소"로 바뀐 것을 찾는다. */
+    private var waitingOrderNos = requestedNos(repository.orders.value)
+
     private val warnedAutoCancel = mutableSetOf<String>()
 
     /** 결제 취소에 실패해 다시 시도할 수 있는 요청 */
@@ -179,19 +191,31 @@ class OrderViewModel(
                     arrivalSeq += 1
                     unseen.value = unseen.value + arrived
                 }
+                val canceled = orders.filter {
+                    it.status == OrderStatus.CUSTOMER_CANCELED && it.orderNo in waitingOrderNos
+                }
+                waitingOrderNos = requestedNos(orders)
+                canceled.forEach(::onCanceledByCustomer)
             }
         }
     }
 
     val uiState: StateFlow<OrderUiState> =
-        combine(repository.orders, dialog, undo, unseen, store) { stored, dialog, undo, unseen, store ->
+        combine(
+            repository.orders, dialog, undo, combine(unseen, leaving, ::Pair), store,
+        ) { stored, dialog, undo, (unseen, leaving), store ->
             // 되돌릴 수 있는 동안에도 카드는 바로 픽업 대기에 보여준다.
             val orders = stored.map {
                 if (it.orderNo == undo?.orderNo) it.copy(status = OrderStatus.READY, readyAt = undo.movedAt) else it
             }
             fun column(status: OrderStatus) = orders.filter { it.status == status }.sortedBy { it.createdAt }
             OrderUiState(
-                pending = column(OrderStatus.REQUESTED),
+                pending = orders
+                    .filter {
+                        it.status == OrderStatus.REQUESTED ||
+                            (it.status == OrderStatus.CUSTOMER_CANCELED && it.orderNo in leaving)
+                    }
+                    .sortedBy { it.createdAt },
                 preparing = column(OrderStatus.ACCEPTED),
                 ready = column(OrderStatus.READY),
                 history = orders.filter { !it.status.isOnBoard }.sortedByDescending { it.createdAt },
@@ -223,6 +247,35 @@ class OrderViewModel(
     private fun blockedOffline(forOrders: Boolean = true): Boolean {
         if (connected.value) return false
         emit(OrderEvent.BlockedOffline(forOrders))
+        return true
+    }
+
+    // ---- 고객 취소 (Figma 1.3.4, 1.3.5) --------------------------------------------------
+
+    private fun requestedNos(orders: List<Order>): Set<String> =
+        orders.filter { it.status == OrderStatus.REQUESTED }.map { it.orderNo }.toSet()
+
+    private fun onCanceledByCustomer(order: Order) {
+        leaving.value = leaving.value + order.orderNo
+        markSeen(order.orderNo)
+        // 거절 사유를 고르는 중이었다면 창을 바꿔서 알려준다.
+        val open = dialog.value
+        if (open is OrderDialog.Reject && open.order.orderNo == order.orderNo) {
+            dialog.value = OrderDialog.CustomerCanceled(order)
+        } else {
+            emit(OrderEvent.CustomerCanceled(order.pickupNo))
+        }
+        viewModelScope.launch {
+            delay(CANCELED_CARD_MILLIS)
+            leaving.value = leaving.value - order.orderNo
+        }
+    }
+
+    /** 처리하려는 주문을 고객이 이미 취소했으면 알려주고 true */
+    private fun showIfCanceledByCustomer(orderNo: String): Boolean {
+        val order = repository.get(orderNo) ?: return false
+        if (order.status != OrderStatus.CUSTOMER_CANCELED) return false
+        dialog.value = OrderDialog.CustomerCanceled(order)
         return true
     }
 
@@ -364,6 +417,7 @@ class OrderViewModel(
     fun onAccept(orderNo: String) {
         if (blockedOffline()) return
         markSeen(orderNo)
+        if (showIfCanceledByCustomer(orderNo)) return
         val order = repository.get(orderNo) ?: return
         if (order.status == OrderStatus.REQUESTED && isExpired(order)) {
             dialog.value = OrderDialog.Expired(order)
@@ -378,6 +432,7 @@ class OrderViewModel(
     fun onRejectClick(orderNo: String) {
         if (blockedOffline()) return
         markSeen(orderNo)
+        if (showIfCanceledByCustomer(orderNo)) return
         val order = repository.get(orderNo) ?: return
         if (!OrderTransitions.canTransition(order.status, OrderStatus.REJECTED)) return
         dialog.value = OrderDialog.Reject(order)
@@ -386,7 +441,7 @@ class OrderViewModel(
     fun onRejectConfirm(reason: RejectReason, soldOutMenus: List<String> = emptyList()) {
         val target = dialog.value as? OrderDialog.Reject ?: return
         dialog.value = null
-        if (blockedOffline()) return
+        if (blockedOffline() || showIfCanceledByCustomer(target.order.orderNo)) return
         cancelPaymentThenTransition(
             orderNo = target.order.orderNo,
             to = OrderStatus.REJECTED,
@@ -524,6 +579,8 @@ class OrderViewModel(
     }
 
     fun onDialogDismiss() {
+        // 고객 취소를 확인하면 카드를 바로 뺀다.
+        (dialog.value as? OrderDialog.CustomerCanceled)?.let { leaving.value = leaving.value - it.order.orderNo }
         dialog.value = null
     }
 
@@ -557,6 +614,18 @@ class OrderViewModel(
             }
         }
         emit(OrderEvent.OrdersNotAccepted)
+    }
+
+    /** 가장 오래된 접수 대기를 [delayMillis] 뒤에 고객이 취소한 것처럼 바꾼다. */
+    fun cancelByCustomerForTest(delayMillis: Long = 0) {
+        if (blockedOffline()) return
+        val target = repository.orders.value
+            .filter { it.status == OrderStatus.REQUESTED }
+            .minByOrNull { it.createdAt } ?: return
+        viewModelScope.launch {
+            delay(delayMillis)
+            repository.transition(target.orderNo, OrderStatus.CUSTOMER_CANCELED)
+        }
     }
 
     // ---- 내부 ----------------------------------------------------------------------------
@@ -624,6 +693,7 @@ class OrderViewModel(
 
     companion object {
         const val UNDO_SECONDS = 10
+        const val CANCELED_CARD_MILLIS = 5_000L
         private const val TEST_ORDER_TRIES = 3
         private const val REFUND_REASON_CODE = "REFUND_BY_OWNER"
         private const val AUTO_CANCEL_REASON_CODE = "AUTO_CANCEL_TIMEOUT"
