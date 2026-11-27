@@ -74,6 +74,19 @@ data class UndoState(
     val movedAt: Long,
 )
 
+/** 로그인 직후 주문을 불러오는 단계(Figma 1.1.6) */
+enum class BoardLoad {
+    DONE,
+
+    /** 1초 안에 끝나면 아무 표시 없이 바로 보드로 간다. */
+    WAITING,
+
+    SKELETON,
+
+    /** 10초가 지나도 못 불러왔다. 연결 끊김 안내를 띄운다. */
+    SLOW,
+}
+
 data class OrderUiState(
     /** 접수 대기. 열 안은 모두 접수 시각 순(먼저 온 주문이 위) */
     val pending: List<Order> = emptyList(),
@@ -93,6 +106,7 @@ data class OrderUiState(
     val storeDialog: StoreDialog? = null,
     /** 인터넷이 끊겼다. 이 동안은 아무것도 바꾸지 않는다. */
     val offline: Boolean = false,
+    val load: BoardLoad = BoardLoad.DONE,
 )
 
 /** 스낵바로 보여줄 일회성 이벤트. 문구는 화면(strings.xml)에서 만든다. */
@@ -148,6 +162,9 @@ class OrderViewModel(
     private val store = MutableStateFlow(StoreState())
     private var undoJob: Job? = null
     private val connected = MutableStateFlow(true)
+    private val load = MutableStateFlow(BoardLoad.DONE)
+    private var loadJob: Job? = null
+    private var underMaintenance = false
     private val eventChannel = Channel<OrderEvent>(Channel.BUFFERED)
 
     /** 처리 중인 주문번호. 더블 탭으로 같은 주문을 두 번 처리하지 않도록 막는다. (메인 스레드에서만 접근) */
@@ -227,7 +244,42 @@ class OrderViewModel(
                 storeDialog = store.dialog,
             )
         }.combine(connected) { state, isConnected -> state.copy(offline = !isConnected) }
+            .combine(load) { state, load -> state.copy(load = load, offline = state.offline || load == BoardLoad.SLOW) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, OrderUiState())
+
+    // ---- 서비스 점검 (Figma 5.2.1) --------------------------------------------------------
+
+    /** 점검 중에는 아무것도 보내지 않는다. 열려 있던 창과 알림음도 거둔다. */
+    fun onMaintenanceChange(active: Boolean) {
+        underMaintenance = active
+        if (!active) return
+        dialog.value = null
+        store.value = store.value.copy(dialog = null)
+        onUndoCooked()
+        onNewOrdersSeen()
+    }
+
+    // ---- 불러오기 (Figma 1.1.6) -----------------------------------------------------------
+
+    /** 앱을 처음 열거나 다시 로그인했을 때 부른다. [extraDelayMillis]는 개발 빌드의 화면 확인용이다. */
+    fun reload(extraDelayMillis: Long = 0) {
+        loadJob?.cancel()
+        load.value = BoardLoad.WAITING
+        loadJob = viewModelScope.launch {
+            val slowness = launch {
+                delay(SKELETON_AFTER_MILLIS)
+                load.value = BoardLoad.SKELETON
+                delay(SLOW_AFTER_MILLIS - SKELETON_AFTER_MILLIS)
+                load.value = BoardLoad.SLOW
+            }
+            delay(extraDelayMillis)
+            repository.load()
+            slowness.cancel()
+            val wasSlow = load.value == BoardLoad.SLOW
+            load.value = BoardLoad.DONE
+            if (wasSlow && connected.value) emit(OrderEvent.Reconnected)
+        }
+    }
 
     // ---- 인터넷 연결 (Figma 5.1) ----------------------------------------------------------
     // 끊긴 동안 누른 처리는 모아 두었다가 보내지 않는다. 연결된 뒤 다시 눌러야 한다.
@@ -245,7 +297,9 @@ class OrderViewModel(
 
     /** 끊겨 있으면 알리고 true */
     private fun blockedOffline(forOrders: Boolean = true): Boolean {
-        if (connected.value) return false
+        // 점검 화면이 대신 보이고 있으므로 따로 알리지 않는다.
+        if (underMaintenance) return true
+        if (connected.value && load.value != BoardLoad.SLOW) return false
         emit(OrderEvent.BlockedOffline(forOrders))
         return true
     }
@@ -454,8 +508,11 @@ class OrderViewModel(
 
     /** 화면에서 1초마다 부른다. 10분이 지난 접수 대기를 자동 취소하고, 2분 전에 한 번 알린다. */
     fun onTick() {
+        if (underMaintenance) return
         // 끊겨 있으면 자동으로 열거나 취소(환불)하지 않는다. 남은 시간 알림은 그대로 울린다.
         if (connected.value) reopenWhenPauseEnds()
+        // 아직 불러오지 못한 주문은 건드리지 않는다.
+        if (load.value != BoardLoad.DONE) return
 
         repository.orders.value
             .filter { it.status == OrderStatus.REQUESTED && !isExpired(it) && it.orderNo !in warnedAutoCancel }
@@ -694,6 +751,8 @@ class OrderViewModel(
     companion object {
         const val UNDO_SECONDS = 10
         const val CANCELED_CARD_MILLIS = 5_000L
+        private const val SKELETON_AFTER_MILLIS = 1_000L
+        private const val SLOW_AFTER_MILLIS = 10_000L
         private const val TEST_ORDER_TRIES = 3
         private const val REFUND_REASON_CODE = "REFUND_BY_OWNER"
         private const val AUTO_CANCEL_REASON_CODE = "AUTO_CANCEL_TIMEOUT"

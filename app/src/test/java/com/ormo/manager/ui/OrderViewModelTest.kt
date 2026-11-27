@@ -2,6 +2,7 @@ package com.ormo.manager.ui
 
 import com.ormo.manager.data.InMemoryMenuRepository
 import com.ormo.manager.data.InMemoryOrderRepository
+import com.ormo.manager.data.OrderRepository
 import com.ormo.manager.domain.AUTO_CANCEL_MILLIS
 import com.ormo.manager.domain.MenuCategory
 import com.ormo.manager.domain.MenuItem
@@ -660,6 +661,87 @@ class OrderViewModelTest {
 
         assertEquals(StoreStatus.Open, vm.uiState.value.storeStatus)
         assertEquals(OrderStatus.REQUESTED, vm.status("A"))
+    }
+
+    // ---- 서비스 점검 ----
+
+    @Test
+    fun maintenance_closesDialogs_andSendsNothing() = runTest {
+        val vm = viewModel(order("A"))
+        vm.onRejectClick("A")
+
+        vm.onMaintenanceChange(true)
+        assertNull(vm.uiState.value.dialog)
+        vm.onAccept("A")
+        now = START + AUTO_CANCEL_MILLIS
+        vm.onTick()
+
+        assertEquals(OrderStatus.REQUESTED, vm.status("A"))
+        assertEquals(0, gateway.calls.size)
+
+        vm.onMaintenanceChange(false)
+        vm.onTick()
+        assertEquals(OrderStatus.AUTO_CANCELED, vm.status("A"))
+    }
+
+    // ---- 불러오기 ----
+
+    private class GatedRepository(
+        delegate: InMemoryOrderRepository,
+        private val gate: CompletableDeferred<Unit>,
+    ) : OrderRepository by delegate {
+        override suspend fun load() = gate.await()
+    }
+
+    private fun loadingViewModel(gate: CompletableDeferred<Unit>, vararg orders: Order) = OrderViewModel(
+        GatedRepository(InMemoryOrderRepository(orders.toList()) { now }, gate),
+        gateway,
+        { now },
+    )
+
+    @Test
+    fun reload_thatFinishesAtOnce_neverShowsLoading() = runTest {
+        val vm = viewModel(order("A"))
+        val events = collectEvents(vm)
+
+        vm.reload()
+
+        assertEquals(BoardLoad.DONE, vm.uiState.value.load)
+        assertTrue(events.isEmpty())
+    }
+
+    @Test
+    fun slowReload_showsSkeletonAfterOneSecond_andConnectionNoticeAfterTen() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val vm = loadingViewModel(gate)
+        val events = collectEvents(vm)
+        vm.reload()
+        assertEquals(BoardLoad.WAITING, vm.uiState.value.load)
+
+        advanceTimeBy(1_001)
+        assertEquals(BoardLoad.SKELETON, vm.uiState.value.load)
+        assertEquals(false, vm.uiState.value.offline)
+        advanceTimeBy(9_000)
+        assertEquals(BoardLoad.SLOW, vm.uiState.value.load)
+        assertTrue(vm.uiState.value.offline)
+
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(BoardLoad.DONE, vm.uiState.value.load)
+        assertEquals(false, vm.uiState.value.offline)
+        assertEquals(listOf<OrderEvent>(OrderEvent.Reconnected), events)
+    }
+
+    @Test
+    fun whileLoading_ordersAreNotAutoCanceled() = runTest {
+        val vm = loadingViewModel(CompletableDeferred(), order("A"))
+        vm.reload()
+        now = START + AUTO_CANCEL_MILLIS
+
+        vm.onTick()
+
+        assertEquals(0, gateway.calls.size)
     }
 
     // ---- 고객 취소 ----

@@ -284,6 +284,29 @@
     <string name="option_warning_last_choices">%1$s%2$s 필수 옵션이에요. %3$s까지 품절되면 메뉴 %4$d개를 팔 수 없어요.</string>
     <string name="option_warning_all_gone">%1$s 항목이 모두 품절이라 메뉴 %2$d개를 팔 수 없어요.</string>
 
+    <string name="board_loading">주문을 불러오는 중이에요</string>
+
+    <!-- 서비스 점검 · 로그인 만료 · 업데이트 -->
+    <string name="maintenance_title">서비스 점검 중이에요</string>
+    <string name="maintenance_body">조금만 기다려 주시면\n더 좋은 서비스로 돌아올게요</string>
+    <string name="maintenance_until">%1$s에 끝날 예정이에요</string>
+    <string name="session_expired_title">다시 로그인해 주세요</string>
+    <string name="session_expired_body">보안을 위해 30일마다 다시 로그인해야 해요</string>
+    <string name="session_expired_login">로그인하기</string>
+    <string name="update_title">새 버전으로 업데이트해 주세요</string>
+    <string name="update_body">주문을 안정적으로 받으려면 업데이트가 필요해요</string>
+    <string name="update_later">나중에</string>
+    <string name="update_now">업데이트</string>
+    <string name="update_after_orders">업데이트 전에 접수 대기를 먼저 처리해 주세요</string>
+    <!-- 개발 빌드 전용 -->
+    <string name="test_status">테스트 상태</string>
+    <string name="test_maintenance_start">서비스 점검 시작</string>
+    <string name="test_maintenance_end">서비스 점검 끝</string>
+    <string name="test_session_expired">로그인 만료</string>
+    <string name="test_update_optional">선택 업데이트 (마감 뒤에 보임)</string>
+    <string name="test_update_required">필수 업데이트</string>
+    <string name="test_update_clear">업데이트 없음</string>
+
     <!-- 고객 취소 -->
     <string name="snackbar_customer_canceled">%1$d번 주문을 고객이 취소했어요</string>
     <string name="dialog_customer_canceled_title">%1$d번 주문은 고객이 취소했어요</string>

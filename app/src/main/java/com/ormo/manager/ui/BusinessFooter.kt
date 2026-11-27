@@ -1,7 +1,6 @@
 package com.ormo.manager.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,6 +37,10 @@ fun BusinessFooter(
     onAddTestOrder: (() -> Unit)? = null,
     /** 개발 빌드 전용. 길게 누르면(true) 잠시 뒤에 취소한다. */
     onTestCustomerCancel: ((delayed: Boolean) -> Unit)? = null,
+    /** 개발 빌드 전용. [onAddTestOrder] 버튼을 길게 누르면 느린 불러오기를 흉내 낸다. */
+    onTestSlowLoad: () -> Unit = {},
+    /** 개발 빌드 전용. 점검·만료·업데이트 화면을 고른다. */
+    onTestStatus: (() -> Unit)? = null,
 ) {
     val items = listOf(
         R.string.biz_company_name to info.companyName,
@@ -70,6 +73,18 @@ fun BusinessFooter(
                 modifier = Modifier.weight(1f),
             )
             // 개발 빌드 전용: Figma에 없는 버튼. 서버 연동 시 viewModel.addTestOrder()와 함께 제거한다.
+            if (onTestStatus != null) {
+                Text(
+                    text = stringResource(R.string.test_status),
+                    style = OrmoType.BodySmSemibold,
+                    color = OrmoColors.TextPrimary,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(OrmoColors.FillNeutralWeak)
+                        .combinedClickable(role = Role.Button, onClick = onTestStatus)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
             if (onTestCustomerCancel != null) {
                 Text(
                     text = stringResource(R.string.test_customer_cancel),
@@ -94,7 +109,11 @@ fun BusinessFooter(
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(OrmoColors.FillNeutralWeak)
-                        .clickable(role = Role.Button, onClick = onAddTestOrder)
+                        .combinedClickable(
+                            role = Role.Button,
+                            onClick = onAddTestOrder,
+                            onLongClick = onTestSlowLoad,
+                        )
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
