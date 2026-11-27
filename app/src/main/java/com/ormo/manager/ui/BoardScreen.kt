@@ -2,6 +2,10 @@ package com.ormo.manager.ui
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +20,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,9 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ormo.manager.R
 import com.ormo.manager.domain.AUTO_CANCEL_MILLIS
@@ -75,7 +86,12 @@ fun BoardScreen(
     storeClosed: Boolean = false,
     /** 인터넷이 끊기면 카드 버튼을 흐리게 보인다. */
     offline: Boolean = false,
+    load: BoardLoad = BoardLoad.DONE,
 ) {
+    if (load != BoardLoad.DONE) {
+        LoadingBoard(showSkeleton = load != BoardLoad.WAITING, modifier = modifier)
+        return
+    }
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = modifier
@@ -112,6 +128,64 @@ fun BoardScreen(
             emptyText = stringResource(R.string.empty_ready),
         ) { order -> ReadyCard(order, now, actions, offline) }
     }
+}
+
+/** 불러오는 중(Figma 1.1.6): 열 제목만 보이고 카드 자리에 깜빡이는 뼈대를 둔다. */
+@Composable
+private fun LoadingBoard(showSkeleton: Boolean, modifier: Modifier = Modifier) {
+    // 1.6초마다 투명 1 → 0.5 → 1
+    val alpha by rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 1f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+        label = "skeleton",
+    )
+    val loading = stringResource(R.string.board_loading)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .background(OrmoColors.BackgroundDefault)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .semantics { contentDescription = loading },
+    ) {
+        listOf(R.string.column_pending, R.string.column_preparing, R.string.column_ready).forEach { title ->
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(OrmoColors.BackgroundLower, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            ) {
+                Text(
+                    text = stringResource(title),
+                    style = OrmoType.BodyXlBold,
+                    color = OrmoColors.TextPrimary,
+                    modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 4.dp),
+                )
+                if (showSkeleton) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.graphicsLayer { this.alpha = alpha },
+                    ) {
+                        SkeletonBlock(Modifier.fillMaxWidth().height(160.dp), radius = 16.dp)
+                        SkeletonBlock(Modifier.fillMaxWidth().height(16.dp), radius = 4.dp)
+                        SkeletonBlock(Modifier.width(80.dp).height(16.dp), radius = 4.dp)
+                        SkeletonBlock(
+                            Modifier.padding(top = 16.dp).fillMaxWidth().height(160.dp),
+                            radius = 16.dp,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkeletonBlock(modifier: Modifier, radius: Dp) {
+    Box(modifier.background(OrmoColors.FillNeutralWeak, RoundedCornerShape(radius)))
 }
 
 @Composable

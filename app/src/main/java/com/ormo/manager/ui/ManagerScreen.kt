@@ -1,6 +1,8 @@
 package com.ormo.manager.ui
 
+import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -63,6 +65,7 @@ fun ManagerScreen(
     viewModel: OrderViewModel,
     pinViewModel: PinViewModel,
     settingsViewModel: SettingsViewModel,
+    serviceViewModel: ServiceViewModel,
     businessInfo: BusinessInfo,
     onLogout: () -> Unit,
 ) {
@@ -78,6 +81,9 @@ fun ManagerScreen(
     val pin by pinViewModel.uiState.collectAsStateWithLifecycle()
     val businessHours by settingsViewModel.businessHours.collectAsStateWithLifecycle()
     val optionGroups by viewModel.optionGroups.collectAsStateWithLifecycle()
+    val service by serviceViewModel.uiState.collectAsStateWithLifecycle()
+    var testStatusOpen by remember { mutableStateOf(false) }
+    var wasUnderMaintenance by rememberSaveable { mutableStateOf(false) }
 
     var tab by rememberSaveable { mutableStateOf(ManagerTab.ORDERS) }
     var selectedOrderNo by rememberSaveable { mutableStateOf<String?>(null) }
@@ -128,6 +134,28 @@ fun ManagerScreen(
             ),
         )
         pinViewModel.onNoticeShown()
+    }
+
+    LaunchedEffect(state.storeStatus, state.pending.size) {
+        serviceViewModel.onShopChange(state.storeStatus == StoreStatus.Closed, state.pending.size)
+    }
+    val underMaintenance = service.maintenance != null
+    LaunchedEffect(underMaintenance) {
+        viewModel.onMaintenanceChange(underMaintenance)
+        if (underMaintenance) {
+            statusMenuOpen = false
+            wantsSales = false
+            pinViewModel.close()
+        } else if (wasUnderMaintenance) {
+            // 점검이 끝나면 보드로 돌아가고 알림음을 한 번 울린다.
+            tab = ManagerTab.ORDERS
+            sound.playAlert()
+        }
+        wasUnderMaintenance = underMaintenance
+    }
+    val updateFirstMessage = stringResource(R.string.update_after_orders)
+    LaunchedEffect(service.updateAfterOrders) {
+        if (service.updateAfterOrders) showSnack(updateFirstMessage, critical = true)
     }
 
     // 자동 취소 확인(1초마다)
@@ -282,11 +310,12 @@ fun ManagerScreen(
                             tab = it
                         }
                     },
-                    pendingCount = state.pending.size,
+                    // 불러오기 전에는 숫자를 보이지 않는다.
+                    pendingCount = if (state.load == BoardLoad.DONE && !underMaintenance) state.pending.size else 0,
                     now = now,
                     soundOff = soundOff,
                     storeStatus = state.storeStatus,
-                    onStatusClick = { statusMenuOpen = !statusMenuOpen },
+                    onStatusClick = { if (!underMaintenance) statusMenuOpen = !statusMenuOpen },
                     onStatusPositioned = { statusButtonX = it },
                 )
             },
@@ -304,6 +333,8 @@ fun ManagerScreen(
                     info = businessInfo,
                     onAddTestOrder = addTestOrder,
                     onTestCustomerCancel = testCancel,
+                    onTestSlowLoad = { viewModel.reload(extraDelayMillis = 12_000L) },
+                    onTestStatus = if (debuggable) ({ testStatusOpen = true }) else null,
                 )
             },
         ) { padding ->
@@ -312,7 +343,10 @@ fun ManagerScreen(
                     .padding(padding)
                     .fillMaxSize(),
             ) {
-                if (tab == ManagerTab.SETTINGS) {
+                val maintenance = service.maintenance
+                if (maintenance != null) {
+                    MaintenanceScreen(maintenance)
+                } else if (tab == ManagerTab.SETTINGS) {
                     SettingsScreen(
                         businessHours = businessHours,
                         onSaveBusinessHours = {
@@ -380,6 +414,7 @@ fun ManagerScreen(
                         onNewestPendingShown = { showNewestPending = false },
                         storeClosed = state.storeStatus == StoreStatus.Closed,
                         offline = state.offline,
+                        load = state.load,
                     )
                 }
 
@@ -391,7 +426,10 @@ fun ManagerScreen(
                         .padding(start = 24.dp, bottom = 24.dp),
                 ) {
                     // 마감 안내는 메뉴 편집 패널의 아래 버튼을 가려서, 패널이 열린 동안에는 숨긴다.
-                    snacks.asReversed().filterNot { menuEditing && it.kind == SnackKind.STORE }.forEach { snack ->
+                    snacks.asReversed().filterNot {
+                        // 점검 중에는 영업을 다시 시작할 수 없어 안내도 숨긴다.
+                        (menuEditing || underMaintenance) && it.kind == SnackKind.STORE
+                    }.forEach { snack ->
                         key(snack.key) {
                             val millis = snack.kind.millis
                             if (millis != null) {
@@ -587,6 +625,42 @@ fun ManagerScreen(
         is OrderDialog.CustomerCanceled ->
             CustomerCanceledDialog(order = dialog.order, onConfirm = viewModel::onDialogDismiss)
         null -> Unit
+    }
+
+    if (testStatusOpen) {
+        TestStatusDialog(
+            status = service,
+            onSelect = serviceViewModel::changeForTest,
+            onDismiss = { testStatusOpen = false },
+        )
+    }
+
+    // 다른 창보다 위에 뜨도록 마지막에 둔다.
+    service.updatePrompt?.let { update ->
+        UpdateDialog(
+            update = update,
+            onUpdate = {
+                // 받는 곳은 서버가 알려준다. 없으면 아직 준비 중이라고 알린다.
+                val opened = update.url != null && runCatching {
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, Uri.parse(update.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }.isSuccess
+                if (!opened) {
+                    serviceViewModel.onUpdateUnavailable()
+                    showSnack(notReadyMessage)
+                }
+            },
+            onLater = serviceViewModel::onUpdateLater,
+        )
+    }
+    if (service.sessionExpired) {
+        SessionExpiredDialog(
+            onLogin = {
+                serviceViewModel.onLoginAgain()
+                onLogout()
+            },
+        )
     }
 }
 

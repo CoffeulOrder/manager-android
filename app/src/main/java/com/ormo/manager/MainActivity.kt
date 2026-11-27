@@ -20,12 +20,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ormo.manager.auth.FakeAuthGateway
 import com.ormo.manager.domain.ORMO_BUSINESS_INFO
 import com.ormo.manager.network.connectivityFlow
+import com.ormo.manager.service.InMemoryServiceStatusSource
 import com.ormo.manager.ui.AuthScreen
 import com.ormo.manager.ui.AuthStep
 import com.ormo.manager.ui.LoginViewModel
 import com.ormo.manager.ui.ManagerScreen
 import com.ormo.manager.ui.OrderViewModel
 import com.ormo.manager.ui.PinViewModel
+import com.ormo.manager.ui.ServiceViewModel
 import com.ormo.manager.ui.SettingsViewModel
 import com.ormo.manager.ui.theme.OrmoTheme
 
@@ -54,12 +56,18 @@ class MainActivity : ComponentActivity() {
                     val viewModel: OrderViewModel = viewModel(factory = OrderViewModel.Factory)
                     val pinViewModel: PinViewModel = viewModel { PinViewModel() }
                     val settingsViewModel: SettingsViewModel = viewModel { SettingsViewModel() }
+                    // 백엔드를 붙일 때 InMemoryServiceStatusSource를 실제 구현으로 바꾼다.
+                    val serviceViewModel: ServiceViewModel =
+                        viewModel { ServiceViewModel(InMemoryServiceStatusSource()) }
                     val connectivity = remember { connectivityFlow(applicationContext) }
                     LaunchedEffect(viewModel) { connectivity.collect(viewModel::onConnectionChange) }
+                    // 이 화면에 들어올 때(로그인할 때)마다 주문을 불러온다.
+                    LaunchedEffect(viewModel) { viewModel.reload() }
                     ManagerScreen(
                         viewModel = viewModel,
                         pinViewModel = pinViewModel,
                         settingsViewModel = settingsViewModel,
+                        serviceViewModel = serviceViewModel,
                         businessInfo = ORMO_BUSINESS_INFO,
                         onLogout = loginViewModel::logout,
                     )

@@ -13,6 +13,12 @@ enum class TransitionResult { APPLIED, NOT_FOUND, NOT_ALLOWED, REASON_REQUIRED }
 interface OrderRepository {
     val orders: StateFlow<List<Order>>
 
+    /**
+     * 로그인한 뒤 주문을 처음 불러온다. 불러올 때까지 돌아오지 않는다(실패하면 안에서 다시 시도한다).
+     * 앱 메모리 저장소는 불러올 것이 없어 바로 돌아온다.
+     */
+    suspend fun load() {}
+
     fun get(orderNo: String): Order?
 
     fun add(order: Order)
