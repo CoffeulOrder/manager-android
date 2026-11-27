@@ -73,6 +73,8 @@ fun HistoryScreen(
     onSelect: (String?) -> Unit,
     onRefund: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** 인터넷이 끊기면 환불 버튼을 흐리게 보인다. */
+    offline: Boolean = false,
 ) {
     var filter by rememberSaveable { mutableStateOf(HistoryFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -119,7 +121,7 @@ fun HistoryScreen(
             }
         }
         if (selected != null) {
-            OrderDetail(order = selected, onClose = { onSelect(null) }, onRefund = onRefund)
+            OrderDetail(order = selected, onClose = { onSelect(null) }, onRefund = onRefund, offline = offline)
         }
     }
 }
@@ -353,7 +355,7 @@ private fun HistoryBadge(status: OrderStatus) {
 
 /** 오른쪽 주문 상세(440): 상태 안내, 메뉴 전체, 처리 기록, 환불하기. 금액·결제 수단은 보여주지 않는다. */
 @Composable
-private fun OrderDetail(order: Order, onClose: () -> Unit, onRefund: (String) -> Unit) {
+private fun OrderDetail(order: Order, onClose: () -> Unit, onRefund: (String) -> Unit, offline: Boolean) {
     Column(
         verticalArrangement = Arrangement.spacedBy(20.dp),
         modifier = Modifier
@@ -409,6 +411,7 @@ private fun OrderDetail(order: Order, onClose: () -> Unit, onRefund: (String) ->
                 text = stringResource(R.string.action_refund),
                 tone = ButtonTone.DANGER_WEAK,
                 onClick = { onRefund(order.orderNo) },
+                dimmed = offline,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

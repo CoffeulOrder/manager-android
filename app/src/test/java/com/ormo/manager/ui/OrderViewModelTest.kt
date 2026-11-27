@@ -662,6 +662,72 @@ class OrderViewModelTest {
         assertEquals(OrderStatus.REQUESTED, vm.status("A"))
     }
 
+    // ---- 인터넷 끊김 ----
+
+    @Test
+    fun offline_blocksEveryOrderAction_withoutSendingLater() = runTest {
+        val vm = viewModel(order("A"), order("B", OrderStatus.ACCEPTED))
+        val events = collectEvents(vm)
+
+        vm.onConnectionChange(false)
+        vm.onAccept("A")
+        vm.onRejectClick("A")
+        vm.onCooked("B")
+        vm.onCloseClick()
+
+        assertTrue(vm.uiState.value.offline)
+        assertNull(vm.uiState.value.dialog)
+        assertNull(vm.uiState.value.storeDialog)
+        assertEquals(List(4) { OrderEvent.BlockedOffline(forOrders = true) }, events)
+
+        vm.onConnectionChange(true)
+
+        assertEquals(listOf<OrderEvent>(OrderEvent.Reconnected), events.drop(4))
+        assertEquals(OrderStatus.REQUESTED, vm.status("A"))
+        assertEquals(OrderStatus.ACCEPTED, vm.status("B"))
+    }
+
+    @Test
+    fun offline_closesAnOpenRejectDialog_withoutRefunding() = runTest {
+        val vm = viewModel(order("A"))
+        vm.onRejectClick("A")
+
+        vm.onConnectionChange(false)
+        vm.onRejectConfirm(RejectReason.OVERLOAD)
+
+        assertNull(vm.uiState.value.dialog)
+        assertEquals(0, gateway.calls.size)
+        assertEquals(OrderStatus.REQUESTED, vm.status("A"))
+    }
+
+    @Test
+    fun offline_cancelsCookedThatWasStillUndoable() = runTest {
+        val vm = viewModel(order("A", OrderStatus.ACCEPTED))
+        vm.onCooked("A")
+
+        vm.onConnectionChange(false)
+        advanceTimeBy(60_000)
+        runCurrent()
+
+        assertNull(vm.uiState.value.undo)
+        assertEquals(OrderStatus.ACCEPTED, vm.status("A"))
+    }
+
+    @Test
+    fun offline_waitsToAutoCancel_untilReconnected() = runTest {
+        val vm = viewModel(order("A"))
+        vm.onConnectionChange(false)
+        now = START + AUTO_CANCEL_MILLIS
+
+        vm.onTick()
+        assertEquals(0, gateway.calls.size)
+        assertEquals(OrderStatus.REQUESTED, vm.status("A"))
+
+        vm.onConnectionChange(true)
+        vm.onTick()
+        assertEquals(OrderStatus.AUTO_CANCELED, vm.status("A"))
+    }
+
     // ---- 정렬 · 테스트 주문 ----
 
     @Test

@@ -9,7 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -17,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ormo.manager.auth.FakeAuthGateway
 import com.ormo.manager.domain.ORMO_BUSINESS_INFO
+import com.ormo.manager.network.connectivityFlow
 import com.ormo.manager.ui.AuthScreen
 import com.ormo.manager.ui.AuthStep
 import com.ormo.manager.ui.LoginViewModel
@@ -51,6 +54,8 @@ class MainActivity : ComponentActivity() {
                     val viewModel: OrderViewModel = viewModel(factory = OrderViewModel.Factory)
                     val pinViewModel: PinViewModel = viewModel { PinViewModel() }
                     val settingsViewModel: SettingsViewModel = viewModel { SettingsViewModel() }
+                    val connectivity = remember { connectivityFlow(applicationContext) }
+                    LaunchedEffect(viewModel) { connectivity.collect(viewModel::onConnectionChange) }
                     ManagerScreen(
                         viewModel = viewModel,
                         pinViewModel = pinViewModel,

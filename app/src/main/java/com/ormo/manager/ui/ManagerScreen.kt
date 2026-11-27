@@ -55,6 +55,8 @@ private const val NEW_ORDER_KEY = "new-order"
 private const val SOUND_OFF_KEY = "sound-off"
 private const val UNDO_KEY = "undo"
 private const val STORE_KEY = "store"
+private const val CONNECTION_KEY = "connection"
+private const val OFFLINE_BLOCKED_KEY = "offline-blocked"
 
 @Composable
 fun ManagerScreen(
@@ -152,7 +154,22 @@ fun ManagerScreen(
         }
     }
 
+    fun showOfflineBlocked(forOrders: Boolean) {
+        val message = resources.getString(
+            if (forOrders) R.string.snackbar_offline_blocked_orders else R.string.snackbar_offline_blocked_change,
+        )
+        // 여러 번 눌러도 하나만 띄운다.
+        snacks = snacks.push(Snack(OFFLINE_BLOCKED_KEY, SnackKind.INFO, message, critical = true))
+    }
+
     // 계속 떠 있는 알림: 상태에 맞춰 넣고 뺀다.
+    LaunchedEffect(state.offline) {
+        snacks = if (state.offline) {
+            snacks.pushToBottom(Snack(CONNECTION_KEY, SnackKind.CONNECTION))
+        } else {
+            snacks.dismiss(CONNECTION_KEY).dismiss(OFFLINE_BLOCKED_KEY)
+        }
+    }
     LaunchedEffect(state.newOrderCount) {
         snacks = if (state.newOrderCount > 0) {
             snacks.push(Snack(NEW_ORDER_KEY, SnackKind.NEW_ORDER))
@@ -223,6 +240,8 @@ fun ManagerScreen(
                     critical = true,
                     viewOrders = true,
                 )
+                is OrderEvent.BlockedOffline -> showOfflineBlocked(event.forOrders)
+                OrderEvent.Reconnected -> showSnack(resources.getString(R.string.snackbar_reconnected))
                 is OrderEvent.PaymentCancelFailed -> showSnack(
                     resources.getString(R.string.snackbar_payment_failed, event.pickupNo),
                     critical = true,
@@ -283,7 +302,13 @@ fun ManagerScreen(
                 if (tab == ManagerTab.SETTINGS) {
                     SettingsScreen(
                         businessHours = businessHours,
-                        onSaveBusinessHours = settingsViewModel::saveBusinessHours,
+                        onSaveBusinessHours = {
+                            if (state.offline) {
+                                showOfflineBlocked(forOrders = false)
+                            } else {
+                                settingsViewModel.saveBusinessHours(it)
+                            }
+                        },
                         storeStatus = state.storeStatus,
                         onCloseStore = viewModel::onCloseClick,
                         onChangePin = pinViewModel::requestChange,
@@ -323,6 +348,7 @@ fun ManagerScreen(
                         selectedOrderNo = selectedOrderNo,
                         onSelect = { selectedOrderNo = it },
                         onRefund = viewModel::onRefundClick,
+                        offline = state.offline,
                     )
                 } else {
                     BoardScreen(
@@ -340,6 +366,7 @@ fun ManagerScreen(
                         showNewestPending = showNewestPending,
                         onNewestPendingShown = { showNewestPending = false },
                         storeClosed = state.storeStatus == StoreStatus.Closed,
+                        offline = state.offline,
                     )
                 }
 
@@ -371,6 +398,12 @@ fun ManagerScreen(
                                         snack.removedMenu?.let(viewModel::onRestoreMenu)
                                         dismiss()
                                     },
+                                )
+                                SnackKind.CONNECTION -> OrmoSnackbar(
+                                    message = stringResource(R.string.snackbar_offline),
+                                    icon = SnackIcon.CRITICAL,
+                                    swipeable = false,
+                                    onDismiss = {},
                                 )
                                 SnackKind.STORE -> {
                                     val status = state.storeStatus

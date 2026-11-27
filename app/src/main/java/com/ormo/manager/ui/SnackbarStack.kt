@@ -4,6 +4,9 @@ import com.ormo.manager.data.RemovedMenu
 
 /** 스낵바 종류. [millis]가 null이면 저절로 사라지지 않는다. */
 enum class SnackKind(val millis: Long?) {
+    /** 인터넷 끊김: 다시 연결될 때까지. 맨 아래에 두고 밀어도 닫히지 않는다. */
+    CONNECTION(null),
+
     /** 새 주문: 처리하거나 닫을 때까지 */
     NEW_ORDER(null),
 
@@ -54,5 +57,8 @@ fun List<Snack>.push(snack: Snack): List<Snack> {
     val victim = firstOrNull { it.kind.millis != null } ?: return next
     return next - victim
 }
+
+/** 다른 알림이 이 위로 쌓이도록 맨 아래(목록 앞)에 둔다. */
+fun List<Snack>.pushToBottom(snack: Snack): List<Snack> = listOf(snack) + filterNot { it.key == snack.key }
 
 fun List<Snack>.dismiss(key: String): List<Snack> = filterNot { it.key == key }

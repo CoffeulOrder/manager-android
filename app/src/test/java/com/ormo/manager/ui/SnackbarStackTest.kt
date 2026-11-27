@@ -5,6 +5,16 @@ import org.junit.Test
 
 class SnackbarStackTest {
 
+    @Test
+    fun connectionNotice_staysAtTheBottom_andLaterOnesStackAbove() {
+        val stack = listOf(Snack("a", SnackKind.INFO))
+            .pushToBottom(Snack("net", SnackKind.CONNECTION))
+            .push(Snack("b", SnackKind.INFO))
+            .push(Snack("c", SnackKind.INFO))
+
+        assertEquals(listOf("net", "b", "c"), stack.map { it.key })
+    }
+
     private fun List<Snack>.keys() = map { it.key }
 
     @Test

@@ -88,6 +88,8 @@ data class OrderUiState(
     val newOrderSeq: Int = 0,
     val storeStatus: StoreStatus = StoreStatus.Open,
     val storeDialog: StoreDialog? = null,
+    /** 인터넷이 끊겼다. 이 동안은 아무것도 바꾸지 않는다. */
+    val offline: Boolean = false,
 )
 
 /** 스낵바로 보여줄 일회성 이벤트. 문구는 화면(strings.xml)에서 만든다. */
@@ -114,6 +116,11 @@ sealed interface OrderEvent {
     /** 방금 품절로 바꾼 메뉴가 접수 대기 주문에 [count]건 들어 있다. */
     data class SoldOutInPendingOrders(val count: Int) : OrderEvent
 
+    /** 인터넷이 끊겨서 처리를 막았다. [forOrders]가 아니면 메뉴·설정 변경이다. */
+    data class BlockedOffline(val forOrders: Boolean) : OrderEvent
+
+    data object Reconnected : OrderEvent
+
     /** [OrderViewModel.retry]로 다시 시도할 수 있다. */
     data class PaymentCancelFailed(val orderNo: String, val pickupNo: Int) : OrderEvent
 }
@@ -134,6 +141,7 @@ class OrderViewModel(
     private val undo = MutableStateFlow<UndoState?>(null)
     private val store = MutableStateFlow(StoreState())
     private var undoJob: Job? = null
+    private val connected = MutableStateFlow(true)
     private val eventChannel = Channel<OrderEvent>(Channel.BUFFERED)
 
     /** 처리 중인 주문번호. 더블 탭으로 같은 주문을 두 번 처리하지 않도록 막는다. (메인 스레드에서만 접근) */
@@ -194,7 +202,29 @@ class OrderViewModel(
                 storeStatus = store.status,
                 storeDialog = store.dialog,
             )
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, OrderUiState())
+        }.combine(connected) { state, isConnected -> state.copy(offline = !isConnected) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, OrderUiState())
+
+    // ---- 인터넷 연결 (Figma 5.1) ----------------------------------------------------------
+    // 끊긴 동안 누른 처리는 모아 두었다가 보내지 않는다. 연결된 뒤 다시 눌러야 한다.
+
+    fun onConnectionChange(isConnected: Boolean) {
+        if (connected.value == isConnected) return
+        connected.value = isConnected
+        if (isConnected) {
+            emit(OrderEvent.Reconnected)
+        } else {
+            // 되돌리기 시간 안의 "조리 완료"는 아직 보내지 않았으므로 취소한다.
+            onUndoCooked()
+        }
+    }
+
+    /** 끊겨 있으면 알리고 true */
+    private fun blockedOffline(forOrders: Boolean = true): Boolean {
+        if (connected.value) return false
+        emit(OrderEvent.BlockedOffline(forOrders))
+        return true
+    }
 
     // ---- 새 주문 알림 --------------------------------------------------------------------
 
@@ -211,6 +241,7 @@ class OrderViewModel(
 
     /** 바로 저장한다. 품절로 바꾼 메뉴가 접수 대기에 있으면 알려준다. */
     fun onSoldOutChange(menuName: String, soldOut: Boolean) {
+        if (blockedOffline(forOrders = false)) return
         menuRepository.setSoldOut(menuName, soldOut)
         if (!soldOut) return
         val waiting = repository.orders.value.count { order ->
@@ -220,10 +251,12 @@ class OrderViewModel(
     }
 
     fun onOptionSoldOutChange(optionName: String, soldOut: Boolean) {
+        if (blockedOffline(forOrders = false)) return
         menuRepository.setOptionSoldOut(optionName, soldOut)
     }
 
     fun onOptionMenuSoldOutChange(optionName: String, menuName: String, soldOut: Boolean) {
+        if (blockedOffline(forOrders = false)) return
         menuRepository.setOptionSoldOutForMenu(optionName, menuName, soldOut)
     }
 
@@ -233,20 +266,21 @@ class OrderViewModel(
     private val canEditMenus get() = store.value.status == StoreStatus.Closed
 
     fun onSaveMenu(original: String?, item: MenuItem): Boolean =
-        canEditMenus && menuRepository.saveMenu(original, item)
+        canEditMenus && !blockedOffline(forOrders = false) && menuRepository.saveMenu(original, item)
 
     fun onDeleteMenu(name: String) {
-        if (!canEditMenus) return
+        if (!canEditMenus || blockedOffline(forOrders = false)) return
         menuRepository.removeMenu(name)?.let { emit(OrderEvent.MenuDeleted(it)) }
     }
 
     /** 삭제 되돌리기. 그 사이 영업을 시작했어도 되돌릴 수 있다. */
     fun onRestoreMenu(removed: RemovedMenu) {
+        if (blockedOffline(forOrders = false)) return
         menuRepository.restoreMenu(removed)
     }
 
     fun onAddOptionGroup(group: OptionGroup, menuNames: Set<String>): Boolean =
-        canEditMenus && menuRepository.addOptionGroup(group, menuNames)
+        canEditMenus && !blockedOffline(forOrders = false) && menuRepository.addOptionGroup(group, menuNames)
 
     // ---- 영업 상태 (Figma 3.1) ------------------------------------------------------------
 
@@ -257,28 +291,32 @@ class OrderViewModel(
             StoreStatus.Closed -> OrderEvent.StoreStarted
             is StoreStatus.Paused -> OrderEvent.StoreResumed(automatic = false)
         }
+        if (blockedOffline()) return
         store.value = StoreState(StoreStatus.Open)
         emit(event)
     }
 
     fun onPauseClick() {
+        if (blockedOffline()) return
         store.value = store.value.copy(dialog = StoreDialog.PauseSetup)
     }
 
     fun onPauseConfirm(minutes: Int?, reason: PauseReason) {
         if (store.value.dialog != StoreDialog.PauseSetup) return
+        if (blockedOffline()) return onStoreDialogDismiss()
         val until = minutes?.let { clock() + it * 60_000L }
         store.value = StoreState(StoreStatus.Paused(until, reason))
     }
 
     fun onCloseClick() {
-        if (store.value.status == StoreStatus.Closed) return
+        if (store.value.status == StoreStatus.Closed || blockedOffline()) return
         store.value = store.value.copy(dialog = StoreDialog.CloseConfirm)
     }
 
     /** [마감하기]. 접수 대기가 남아 있으면 한 번 더 묻는다. */
     fun onCloseConfirm() {
         if (store.value.dialog != StoreDialog.CloseConfirm) return
+        if (blockedOffline()) return onStoreDialogDismiss()
         val waiting = repository.orders.value.count { it.status == OrderStatus.REQUESTED }
         store.value = if (waiting > 0) {
             store.value.copy(dialog = StoreDialog.CloseWithPending(waiting))
@@ -291,6 +329,7 @@ class OrderViewModel(
     fun onCancelPendingAndClose() {
         if (store.value.dialog !is StoreDialog.CloseWithPending) return
         store.value = store.value.copy(dialog = null)
+        if (blockedOffline()) return
         val waiting = repository.orders.value.filter { it.status == OrderStatus.REQUESTED }
         viewModelScope.launch {
             var allCanceled = true
@@ -323,6 +362,7 @@ class OrderViewModel(
     // ---- 접수 대기 -----------------------------------------------------------------------
 
     fun onAccept(orderNo: String) {
+        if (blockedOffline()) return
         markSeen(orderNo)
         val order = repository.get(orderNo) ?: return
         if (order.status == OrderStatus.REQUESTED && isExpired(order)) {
@@ -336,6 +376,7 @@ class OrderViewModel(
     }
 
     fun onRejectClick(orderNo: String) {
+        if (blockedOffline()) return
         markSeen(orderNo)
         val order = repository.get(orderNo) ?: return
         if (!OrderTransitions.canTransition(order.status, OrderStatus.REJECTED)) return
@@ -345,6 +386,7 @@ class OrderViewModel(
     fun onRejectConfirm(reason: RejectReason, soldOutMenus: List<String> = emptyList()) {
         val target = dialog.value as? OrderDialog.Reject ?: return
         dialog.value = null
+        if (blockedOffline()) return
         cancelPaymentThenTransition(
             orderNo = target.order.orderNo,
             to = OrderStatus.REJECTED,
@@ -357,7 +399,8 @@ class OrderViewModel(
 
     /** 화면에서 1초마다 부른다. 10분이 지난 접수 대기를 자동 취소하고, 2분 전에 한 번 알린다. */
     fun onTick() {
-        reopenWhenPauseEnds()
+        // 끊겨 있으면 자동으로 열거나 취소(환불)하지 않는다. 남은 시간 알림은 그대로 울린다.
+        if (connected.value) reopenWhenPauseEnds()
 
         repository.orders.value
             .filter { it.status == OrderStatus.REQUESTED && !isExpired(it) && it.orderNo !in warnedAutoCancel }
@@ -366,6 +409,8 @@ class OrderViewModel(
                 warnedAutoCancel += it.orderNo
                 emit(OrderEvent.AutoCancelSoon(it.pickupNo))
             }
+
+        if (!connected.value) return
 
         repository.orders.value
             .filter { it.status == OrderStatus.REQUESTED && isExpired(it) && it.orderNo !in failedAutoCancels }
@@ -395,6 +440,7 @@ class OrderViewModel(
 
     /** 조리 완료: 카드는 바로 옮기고, 10초 뒤에 확정한다. */
     fun onCooked(orderNo: String) {
+        if (blockedOffline()) return
         // 10초 안에 다른 카드를 처리하면 앞 건은 바로 확정한다.
         commitReady()
         val order = repository.get(orderNo) ?: return
@@ -425,6 +471,7 @@ class OrderViewModel(
     // ---- 픽업 대기 -----------------------------------------------------------------------
 
     fun onPickedUp(orderNo: String) {
+        if (blockedOffline()) return
         if (undo.value?.orderNo == orderNo) commitReady()
         val order = repository.get(orderNo) ?: return
         if (repository.transition(orderNo, OrderStatus.COMPLETED) == TransitionResult.APPLIED) {
@@ -433,6 +480,7 @@ class OrderViewModel(
     }
 
     fun onNoShowClick(orderNo: String) {
+        if (blockedOffline()) return
         val order = repository.get(orderNo) ?: return
         if (!canMarkNoShow(order)) return
         dialog.value = OrderDialog.NoShow(order)
@@ -442,6 +490,7 @@ class OrderViewModel(
     fun onNoShowConfirm() {
         val target = dialog.value as? OrderDialog.NoShow ?: return
         dialog.value = null
+        if (blockedOffline()) return
         if (repository.transition(target.order.orderNo, OrderStatus.NO_SHOW) == TransitionResult.APPLIED) {
             emit(OrderEvent.NoShowed(target.order.pickupNo))
         }
@@ -456,6 +505,7 @@ class OrderViewModel(
     // ---- 환불 (픽업 완료 · 미수령, 전액) ----------------------------------------------------
 
     fun onRefundClick(orderNo: String) {
+        if (blockedOffline()) return
         val order = repository.get(orderNo) ?: return
         if (!OrderTransitions.canTransition(order.status, OrderStatus.REFUNDED)) return
         dialog.value = OrderDialog.Refund(order)
@@ -464,6 +514,7 @@ class OrderViewModel(
     fun onRefundConfirm(reason: RefundReason) {
         val target = dialog.value as? OrderDialog.Refund ?: return
         dialog.value = null
+        if (blockedOffline()) return
         cancelPaymentThenTransition(
             orderNo = target.order.orderNo,
             to = OrderStatus.REFUNDED,
@@ -478,6 +529,7 @@ class OrderViewModel(
 
     /** 처리하지 못한 요청을 다시 보낸다(Figma 1.3.6). */
     fun retry(orderNo: String) {
+        if (blockedOffline()) return
         failedRequests.remove(orderNo)?.invoke()
     }
 
@@ -485,6 +537,7 @@ class OrderViewModel(
 
     /** 예시 주문 1건을 접수 대기에 추가한다. 나중에 이 함수와 푸터의 버튼만 지우면 된다. */
     fun addTestOrder() {
+        if (blockedOffline()) return
         // 잠시 중지·마감 중에는 서버가 새 주문을 막는 것처럼 받지 않는다.
         if (store.value.status != StoreStatus.Open) {
             emit(OrderEvent.OrdersNotAccepted)
