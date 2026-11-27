@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Figma UIUX-Design 사장님 웹에서 내보낸 아이콘 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="22"
+    android:viewportHeight="22">
+    <path
+        android:fillType="evenOdd"
+        android:fillColor="#FF02A262"
+        android:pathData="M11 0C17.0751 0 22 4.92487 22 11C22 17.0751 17.0751 22 11 22C4.92487 22 0 17.0751 0 11C0 4.92487 4.92487 0 11 0ZM16.2188 7.42285C15.7345 6.97083 14.9748 6.99643 14.5225 7.48047L9.65625 12.6875L7.43457 10.5371C6.95832 10.0765 6.1981 10.0893 5.7373 10.5654C5.27672 11.0414 5.28914 11.8008 5.76465 12.2617L8.86523 15.2617C9.09642 15.4854 9.40789 15.6076 9.72949 15.5996C10.0513 15.5915 10.3564 15.4539 10.5762 15.2188L16.2764 9.11914C16.7288 8.6349 16.703 7.87532 16.2188 7.42285Z" />
+</vector>

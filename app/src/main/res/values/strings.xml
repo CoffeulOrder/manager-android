@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 화면 문구는 Figma "Design [사장님 웹]"을 그대로 따른다. -->
+<resources>
+    <string name="app_name">ORMO 관리자</string>
+
+    <!-- 상단 바 -->
+    <string name="store_name">범석관 카페</string>
+    <string name="store_open">영업 중</string>
+    <string name="store_paused">잠시 중지</string>
+    <string name="store_closed">마감</string>
+    <string name="tab_orders">주문</string>
+    <string name="tab_history">오늘 내역</string>
+    <string name="tab_menu">메뉴 관리</string>
+    <string name="tab_sales">매출</string>
+    <string name="tab_settings">설정</string>
+    <string name="sound_on">소리 켜짐</string>
+    <string name="sound_off">소리 꺼짐</string>
+    <string name="not_ready_yet">아직 준비 중인 화면이에요</string>
+    <!-- 데모 전용 -->
+    <string name="add_test_order">테스트 주문 추가</string>
+
+    <!-- 주문 보드 -->
+    <string name="column_pending">접수 대기</string>
+    <string name="column_preparing">제조중</string>
+    <string name="column_ready">픽업 대기</string>
+    <string name="empty_pending">새 주문을 기다리고 있어요</string>
+    <string name="empty_pending_closed">지금은 주문을 받지 않아요</string>
+    <string name="empty_preparing">제조 중인 주문이 없어요</string>
+    <string name="empty_ready">픽업을 기다리는 주문이 없어요</string>
+    <string name="scroll_down">%1$s 아래 주문 보기</string>
+
+    <!-- 주문 카드 -->
+    <string name="method_dine_in">매장 섭취</string>
+    <string name="method_takeout">테이크아웃</string>
+    <string name="auto_cancel_in">자동 취소까지 %1$s</string>
+    <string name="elapsed_just_now">방금</string>
+    <string name="elapsed_minutes">%1$d분 전</string>
+    <string name="elapsed_hours">%1$d시간 전</string>
+    <string name="ready_just_now">방금 준비</string>
+    <string name="ready_minutes">준비 후 %1$d분</string>
+    <string name="pickup_overdue">픽업 예정 시간 지남</string>
+    <string name="menu_line">%1$s ×%2$d</string>
+    <string name="option_line">ㄴ %1$s</string>
+    <string name="action_reject">거절</string>
+    <string name="action_accept">수락</string>
+    <string name="action_cooked">조리 완료</string>
+    <string name="action_picked_up">픽업 완료</string>
+    <string name="action_clean_up">정리하기</string>
+    <string name="action_refund">환불하기</string>
+
+    <!-- 오늘 내역 -->
+    <string name="filter_all">전체</string>
+    <string name="filter_completed">픽업 완료</string>
+    <string name="filter_canceled">거절·취소</string>
+    <string name="filter_no_show">미수령</string>
+    <string name="search_hint">픽업 번호로 찾기</string>
+    <string name="search_clear">검색어 지우기</string>
+    <string name="header_number_name">번호 · 이름</string>
+    <string name="header_ordered_at">주문 시각</string>
+    <string name="header_menu">메뉴</string>
+    <string name="header_status">상태</string>
+    <string name="header_processed">처리</string>
+    <string name="pickup_no">%1$d번</string>
+    <string name="menu_summary_more">%1$s 외 %2$d개</string>
+    <string name="menu_summary_options">%1$s · %2$s</string>
+    <string name="status_completed">픽업 완료</string>
+    <string name="status_no_show">미수령</string>
+    <string name="status_rejected">거절</string>
+    <string name="status_auto_canceled">자동 취소</string>
+    <string name="status_customer_canceled">고객 취소</string>
+    <string name="status_store_canceled">매장 취소</string>
+    <string name="status_refunded">환불</string>
+    <string name="processed_picked_up">%1$s 픽업</string>
+    <string name="processed_with_reason">%1$s · %2$s</string>
+    <string name="processed_cleaned">%1$s 정리</string>
+    <string name="processed_refunded">%1$s 환불</string>
+    <string name="reason_timeout">시간 초과</string>
+    <string name="reason_other">기타</string>
+    <string name="empty_history_title">오늘 주문이 아직 없어요</string>
+    <string name="empty_history_body">픽업 완료 · 거절 · 미수령 주문을 확인해요</string>
+    <string name="empty_filter_completed">픽업 완료한 주문이 없어요</string>
+    <string name="empty_filter_canceled">거절·취소된 주문이 없어요</string>
+    <string name="empty_filter_no_show">미수령 주문이 없어요</string>
+    <string name="search_empty_title">%1$s번 주문이 없어요</string>
+    <string name="search_empty_body">번호를 다시 확인해 주세요</string>
+    <string name="detail_close">상세 닫기</string>
+    <string name="callout_rejected">%1$s에 거절했어요. 사유: %2$s\n결제 금액 %3$s은 고객에게 전액 환불됐어요</string>
+    <string name="callout_sold_out">%1$s를 오늘만 품절로 바꿨어요</string>
+    <string name="callout_auto_canceled">10분 안에 수락하지 않아 %1$s에 자동으로 취소됐어요\n결제 금액은 고객에게 전액 환불됐어요</string>
+    <string name="callout_customer_canceled">%1$s에 고객이 주문을 취소했어요\n결제 금액은 고객에게 전액 환불됐어요</string>
+    <string name="callout_store_canceled">관리자 웹에서 %1$s에 취소했어요. 사유: 기타\n결제 금액은 고객에게 전액 환불됐어요</string>
+    <string name="callout_no_show">%1$s에 주문을 정리했어요. 고객에게는 ‘픽업 예정 시간이 지났어요’로 표시돼요.</string>
+    <string name="callout_refunded">%1$s에 %2$s을 환불했어요</string>
+    <string name="menu_sold_out">품절</string>
+    <string name="log_ordered">주문</string>
+    <string name="log_accepted">수락</string>
+    <string name="log_cooked">조리 완료</string>
+    <string name="log_picked_up">픽업 완료</string>
+    <string name="log_cleaned">미수령 정리</string>
+    <string name="log_rejected">거절</string>
+    <string name="log_auto_canceled">자동 취소</string>
+    <string name="log_customer_canceled">고객 취소</string>
+    <string name="log_store_canceled">매장 취소</string>
+    <string name="log_refunded">환불</string>
+
+    <!-- 잠시 중지 · 마감 -->
+    <string name="pause_title">얼마나 쉴까요?</string>
+    <string name="pause_description">시간이 지나면 자동으로 다시 주문을 받아요</string>
+    <string name="pause_duration_label">쉬는 시간</string>
+    <string name="pause_minutes">%1$d분</string>
+    <string name="pause_manual">직접 다시 열기</string>
+    <string name="pause_reason_label">사유</string>
+    <string name="pause_reason_busy">주문이 많아요</string>
+    <string name="pause_reason_preparing">재료 준비 중</string>
+    <string name="pause_reason_store">가게 사정</string>
+    <string name="pause_confirm">잠시 중지하기</string>
+    <string name="close_title">오늘 영업을 마감할까요?</string>
+    <string name="close_body">마감하면 고객이 주문할 수 없어요</string>
+    <string name="close_confirm">마감하기</string>
+    <string name="close_pending_title">접수 대기 주문이 %1$d건 있어요</string>
+    <string name="close_pending_body">마감하면 남은 주문을 모두 취소하고 고객에게 전액 환불해요</string>
+    <string name="close_pending_confirm">모두 취소하기</string>
+
+    <!-- 메뉴 관리 -->
+    <string name="menu_tab_items">메뉴</string>
+    <string name="menu_tab_options">옵션</string>
+    <string name="category_coffee">커피</string>
+    <string name="category_dessert">디저트</string>
+    <string name="category_ade">에이드</string>
+    <string name="category_smoothie">스무디</string>
+    <string name="category_drink">음료</string>
+    <string name="add_menu">메뉴 추가</string>
+    <string name="menu_on_sale">판매 중</string>
+    <string name="option_filter_all">전체</string>
+    <string name="option_filter_on_sale">판매중</string>
+    <string name="option_filter_sold_out">품절</string>
+    <string name="add_option">옵션 추가</string>
+    <string name="option_group_required">%1$s · 필수</string>
+    <string name="option_group_optional">%1$s · 선택</string>
+    <string name="option_group_optional_max">%1$s · 선택 · 최대 %2$d개</string>
+    <string name="option_subtitle">+%1$s · 메뉴 %2$d개</string>
+    <string name="snackbar_sold_out_pending">접수 대기 주문 %1$d건이 있어요</string>
+
+    <!-- 2차 비밀번호 -->
+    <string name="pin_enter_title">2차 비밀번호를 입력해 주세요</string>
+    <string name="pin_create_title">2차 비밀번호를 정해 주세요</string>
+    <string name="pin_confirm_title">한 번 더 입력해 주세요</string>
+    <string name="pin_mismatch">비밀번호가 일치하지 않아요</string>
+    <string name="pin_locked">%1$d초 후 다시 입력할 수 있어요</string>
+    <string name="pin_delete">지우기</string>
+    <string name="snackbar_pin_created">2차 비밀번호를 정했어요</string>
+
+    <string name="pin_new_title">새 2차 비밀번호를 입력해 주세요</string>
+    <string name="snackbar_pin_changed">2차 비밀번호를 변경했어요</string>
+
+    <!-- 설정 -->
+    <string name="settings_section_store">매장 운영</string>
+    <string name="settings_alert_sound">알림음</string>
+    <string name="settings_alert_default">기본음</string>
+    <string name="settings_hours">영업시간</string>
+    <string name="settings_section_account">계정</string>
+    <string name="settings_password">비밀번호 바꾸기</string>
+    <string name="settings_pin">2차 비밀번호 바꾸기</string>
+    <string name="settings_logout">로그아웃</string>
+    <string name="hours_holiday">공휴일</string>
+    <string name="hours_day_range">%1$s~%2$s</string>
+    <string name="hours_summary">%1$s %2$s~%3$s</string>
+    <string name="hours_all_closed">쉬어요</string>
+    <string name="hours_save">저장하기</string>
+    <string name="hours_open_label">%1$s 여는 시각</string>
+    <string name="hours_close_label">%1$s 닫는 시각</string>
+    <string name="logout_blocked_title">영업 중에는 로그아웃할 수 없어요</string>
+    <string name="logout_blocked_body">먼저 영업을 마감해 주세요</string>
+    <string name="logout_title">로그아웃할까요?</string>
+    <string name="logout_body">다시 로그인할 때 매장 계정 아이디와\n비밀번호가 필요해요</string>
+
+    <!-- 매출 -->
+    <string name="sales_daily">일간</string>
+    <string name="sales_weekly">주간</string>
+    <string name="sales_monthly">월간</string>
+    <string name="sales_previous">이전</string>
+    <string name="sales_next">다음</string>
+    <string name="sales_total">매출</string>
+    <string name="sales_orders">주문</string>
+    <string name="sales_refunds">환불</string>
+    <string name="sales_count">%1$,d건</string>
+    <string name="sales_cups">%1$,d잔</string>
+    <string name="sales_refund_value">%1$d건 · %2$s</string>
+    <string name="sales_date_day">%1$d월 %2$d일 %3$s요일</string>
+    <string name="sales_date_week">%1$d월 %2$d일 – %3$d일</string>
+    <string name="sales_date_week_across">%1$d월 %2$d일 – %3$d월 %4$d일</string>
+    <string name="sales_date_month">%1$d년 %2$d월</string>
+    <string name="sales_best_day">%1$d월 %2$d일 (%3$s)</string>
+    <string name="sales_hour">%1$d시</string>
+    <string name="sales_chart_hourly">시간대별 매출</string>
+    <string name="sales_chart_weekly">요일별 매출</string>
+    <string name="sales_chart_monthly">날짜별 매출</string>
+    <string name="sales_graph">그래프</string>
+    <string name="sales_calendar">달력</string>
+    <string name="sales_top_menus">많이 팔린 메뉴</string>
+    <string name="sales_best_days">매출이 많았던 날</string>
+    <string name="sales_empty_title">이날은 주문이 없었어요</string>
+    <string name="sales_empty_body">쉬는 날이거나 주문을 받지 않은 날이에요</string>
+    <string-array name="weekdays_from_monday">
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+        <item>일</item>
+    </string-array>
+
+    <!-- 메뉴·옵션 추가 · 수정 · 삭제 -->
+    <string name="menu_locked_while_open">마감한 뒤 고칠 수 있어요. 품절은 지금도 바꿀 수 있어요</string>
+    <string name="menu_hidden_header">숨긴 메뉴</string>
+    <string name="menu_hidden">숨김</string>
+    <string name="menu_new">새 메뉴</string>
+    <string name="field_name">이름</string>
+    <string name="field_price">가격</string>
+    <string name="field_description">설명</string>
+    <string name="field_category">카테고리</string>
+    <string name="field_options">옵션</string>
+    <string name="unit_won">원</string>
+    <string name="menu_name_hint">메뉴 이름</string>
+    <string name="menu_description_hint">고객 앱 메뉴에 보일 설명</string>
+    <string name="menu_name_taken">같은 이름의 메뉴가 있어요</string>
+    <string name="options_empty_title">아직 연결한 옵션이 없어요</string>
+    <string name="options_empty_body">옵션이 없으면 고객이 바로 담을 수 있어요</string>
+    <string name="menu_visible_title">고객에게 보이기</string>
+    <string name="menu_visible_body">끄면 고객 앱 메뉴에서 숨겨요. 지난 주문·매출 기록은 그대로예요</string>
+    <string name="menu_hidden_body">고객 앱에서 숨긴 메뉴예요. 켜면 바로 다시 보여요</string>
+    <string name="menu_delete">메뉴 삭제</string>
+    <string name="action_save">저장하기</string>
+    <string name="action_add">추가하기</string>
+    <string name="dialog_delete_menu_title">%1$s 메뉴를 삭제할까요?</string>
+    <string name="dialog_delete_menu_body">잠시 팔지 않을 거라면 ‘고객에게 보이기’를\n꺼 주세요</string>
+    <string name="action_delete">삭제하기</string>
+    <string name="snackbar_menu_deleted">%1$s 메뉴를 삭제했어요</string>
+    <string name="link_title">%1$s 옵션</string>
+    <string name="link_new_option">새 옵션 만들기</string>
+    <string name="link_apply">연결하기</string>
+    <string name="group_required">필수</string>
+    <string name="group_optional">선택</string>
+    <string name="navigate_back">뒤로</string>
+    <string name="option_new">새 옵션</string>
+    <string name="option_name">옵션 이름</string>
+    <string name="option_name_hint">옵션 그룹 이름</string>
+    <string name="option_required_title">필수 옵션</string>
+    <string name="option_items">항목</string>
+    <string name="option_add_item">항목 추가</string>
+    <string name="option_item_hint">항목 이름</string>
+    <string name="option_linked_menus">연결할 메뉴</string>
+    <string name="option_link_all">모두 연결</string>
+    <string name="option_name_taken">같은 이름의 옵션이 있어요</string>
+
+    <!-- 로그인 -->
+    <string name="logo_description">ORMO</string>
+    <string name="login_title">매장 계정으로 로그인해 주세요</string>
+    <string name="login_id">아이디</string>
+    <string name="login_password">비밀번호</string>
+    <string name="login_button">로그인</string>
+    <string name="login_locked_button">%1$d초 후 다시 시도할 수 있어요</string>
+    <string name="login_rejected">아이디나 비밀번호를 다시 확인해 주세요</string>
+    <string name="login_locked">비밀번호 입력 횟수를 초과했어요</string>
+    <string name="login_unavailable">로그인하지 못했어요. 잠시 후 다시 시도해 주세요</string>
+    <string name="login_help">계정을 잊었다면 ORMO 운영팀에 문의해 주세요</string>
+    <string name="password_title">처음 오셨네요\n비밀번호를 바꿔 주세요</string>
+    <string name="password_new">새 비밀번호</string>
+    <string name="password_confirm">새 비밀번호 확인</string>
+    <string name="password_rule_length">8자 이상</string>
+    <string name="password_rule_mix">영문과 숫자 포함</string>
+    <string name="password_mismatch">비밀번호가 서로 달라요</string>
+    <string name="password_failed">비밀번호를 바꾸지 못했어요. 잠시 후 다시 시도해 주세요</string>
+    <string name="password_start">시작하기</string>
+    <string name="password_show">비밀번호 보기</string>
+    <string name="password_hide">비밀번호 숨기기</string>
+
+    <!-- 거절 사유 (이 순서로 표시) -->
+    <string name="reason_out_of_stock">품절 또는 재료 소진</string>
+    <string name="reason_out_of_stock_short">품절</string>
+    <string name="reason_overload">주문 많음</string>
+    <string name="reason_closing_soon">마감 임박</string>
+    <string name="reason_store_issue">가게 사정</string>
+
+    <!-- 거절 창 -->
+    <string name="dialog_close">닫기</string>
+    <string name="dialog_confirm">확인</string>
+    <string name="dialog_reject_title">%1$d번 주문을 거절할까요?</string>
+    <string name="dialog_reject_description">결제 금액 %1$s은 고객에게 전액 환불돼요</string>
+    <string name="dialog_reject_label">거절 사유</string>
+    <string name="dialog_reject_confirm">거절하기</string>
+    <string name="sold_out_today">%1$s를 오늘만 품절로 바꾸기</string>
+    <string name="preview_title">매장에서 주문을 받지 못했어요</string>
+    <string name="preview_out_of_stock">주문한 메뉴를 지금 만들 수 없어요. 결제한 %1$s은 환불해 드려요</string>
+    <string name="preview_overload">주문이 많아 지금은 만들 수 없어요. 결제한 %1$s은 환불해 드려요</string>
+    <string name="preview_closing_soon">곧 영업이 끝나요. 결제한 %1$s은 환불해 드려요</string>
+    <string name="preview_store_issue">매장 사정으로 받지 못했어요. 결제한 %1$s은 환불해 드려요</string>
+
+    <!-- 환불 창 -->
+    <string name="dialog_refund_title">%1$d번 주문을 환불할까요?</string>
+    <string name="refund_desc_completed">%1$s 픽업 완료 · %2$s</string>
+    <string name="refund_desc_no_show">%1$s 미수령 정리 · %2$s</string>
+    <string name="dialog_refund_label">환불 사유</string>
+    <string name="refund_wrong_drink">음료가 잘못 나왔어요</string>
+    <string name="refund_hygiene">위생 문제가 있어요</string>
+    <string name="refund_other">기타</string>
+    <string name="refund_memo_label">고객에게 보낼 메모</string>
+    <string name="refund_memo_hint">기타 선택 시 사유를 꼭 입력해 주세요</string>
+    <string name="dialog_refund_confirm">%1$s 환불하기</string>
+
+    <!-- 미수령 정리 · 자동 취소 확인창 -->
+    <string name="dialog_no_show_title">%1$d번 주문을 미수령으로 정리할까요?</string>
+    <string name="dialog_no_show_body">정리하면 되돌릴 수 없고, 결제 금액은 환불되지 않아요</string>
+    <string name="dialog_expired_title">%1$d번 주문은 시간이 지나 자동으로 취소됐어요</string>
+    <string name="dialog_expired_body">결제 금액은 고객에게 자동으로 환불돼요</string>
+
+    <!-- 스낵바 -->
+    <string name="snackbar_new_orders">새 주문이 %1$d건 들어왔어요</string>
+    <string name="snackbar_view_orders">주문 보기</string>
+    <string name="snackbar_sound_off">태블릿 소리가 꺼져 있어요.</string>
+    <string name="snackbar_sound_on_action">소리 키기</string>
+    <string name="snackbar_retry">다시 시도</string>
+    <string name="snackbar_paused_until">%1$s까지 주문을 받지 않아요</string>
+    <string name="snackbar_paused">주문을 받지 않고 있어요</string>
+    <string name="snackbar_take_orders">주문 받기</string>
+    <string name="snackbar_closed">영업이 종료되었지만, 접수된 주문은 계속 처리할 수 있어요</string>
+    <string name="snackbar_start_store">영업 시작하기</string>
+    <string name="snackbar_store_started">영업을 시작했어요</string>
+    <string name="snackbar_store_resumed">영업을 재개했어요</string>
+    <string name="snackbar_not_accepting">지금은 주문을 받지 않아요</string>
+    <string name="snackbar_accepted">%1$d번 주문을 수락했어요</string>
+    <string name="snackbar_rejected">%1$d번 주문을 거절했어요</string>
+    <string name="snackbar_cooked">%1$d번을 픽업 대기로 옮겼어요 · %2$d초</string>
+    <string name="snackbar_undo">되돌리기</string>
+    <string name="snackbar_picked_up">%1$d번 주문을 픽업 완료했어요</string>
+    <string name="snackbar_no_show">%1$d번 주문을 미수령으로 정리했어요</string>
+    <string name="snackbar_auto_canceled">%1$d번 주문이 자동으로 취소됐어요</string>
+    <string name="snackbar_refunded">%1$d번 주문 %2$s을 환불했어요</string>
+    <string name="snackbar_payment_failed">%1$d번 주문을 처리하지 못했어요</string>
+
+    <!-- 하단 사업자 정보 (통신판매중개자 고지) -->
+    <string name="biz_company_name">상호명</string>
+    <string name="biz_representative">대표자명</string>
+    <string name="biz_registration_number">사업자등록번호</string>
+    <string name="biz_mail_order_number">통신판매업 신고번호</string>
+    <string name="biz_address">사업장 주소</string>
+    <string name="biz_customer_center">고객센터</string>
+    <string name="biz_email">이메일</string>
+    <string name="biz_item_format">%1$s %2$s</string>
+</resources>

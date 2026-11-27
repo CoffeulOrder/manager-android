@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Figma Semantic/Fill/Brand -->
+    <color name="ormo_blue">#298DFF</color>
+    <color name="ormo_background">#FFFFFF</color>
+</resources>
