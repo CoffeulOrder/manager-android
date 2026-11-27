@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OrmoManagerDemo"
+rootProject.name = "OrmoManager"
 include(":app")
