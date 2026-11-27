@@ -16,7 +16,7 @@
     <string name="sound_on">소리 켜짐</string>
     <string name="sound_off">소리 꺼짐</string>
     <string name="not_ready_yet">아직 준비 중인 화면이에요</string>
-    <!-- 데모 전용 -->
+    <!-- 개발 빌드 전용 -->
     <string name="add_test_order">테스트 주문 추가</string>
 
     <!-- 주문 보드 -->
@@ -275,6 +275,14 @@
     <string name="password_start">시작하기</string>
     <string name="password_show">비밀번호 보기</string>
     <string name="password_hide">비밀번호 숨기기</string>
+
+    <!-- 옵션 상세 -->
+    <string name="option_partly_sold_out">일부 품절</string>
+    <string name="option_detail_summary">%1$s · %2$s · +%3$s · 메뉴 %4$d개</string>
+    <string name="option_all_menus">모든 메뉴</string>
+    <string name="option_no_menus">이 옵션을 쓰는 메뉴가 없어요</string>
+    <string name="option_warning_last_choices">%1$s%2$s 필수 옵션이에요. %3$s까지 품절되면 메뉴 %4$d개를 팔 수 없어요.</string>
+    <string name="option_warning_all_gone">%1$s 항목이 모두 품절이라 메뉴 %2$d개를 팔 수 없어요.</string>
 
     <!-- 거절 사유 (이 순서로 표시) -->
     <string name="reason_out_of_stock">품절 또는 재료 소진</string>

@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    namespace = "com.ormo.managerdemo"
+    namespace = "com.ormo.manager"
     // 최신 AndroidX(Compose 1.12 / Lifecycle 2.11)가 compileSdk 37 이상을 요구한다.
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.ormo.managerdemo"
+        applicationId = "com.ormo.manager"
         minSdk = 26
         // Android 16(API 36) 이상은 태블릿(>=600dp)에서 screenOrientation 고정을 무시하므로,
         // 가로 고정을 유지하려고 targetSdk는 35로 둔다. (README 참고)
