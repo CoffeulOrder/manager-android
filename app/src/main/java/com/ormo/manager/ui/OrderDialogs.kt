@@ -379,6 +379,24 @@ fun ExpiredDialog(order: Order, onConfirm: () -> Unit) {
     }
 }
 
+/** 수락·거절하려는데 고객이 먼저 취소했을 때(Figma 1.3.5). [확인]을 눌러야 닫힌다. */
+@Composable
+fun CustomerCanceledDialog(order: Order, onConfirm: () -> Unit) {
+    AlertBox(
+        title = stringResource(R.string.dialog_customer_canceled_title, order.pickupNo),
+        body = stringResource(R.string.dialog_customer_canceled_body),
+        onDismiss = {},
+        dismissible = false,
+    ) {
+        ActionButton(
+            text = stringResource(R.string.dialog_confirm),
+            tone = ButtonTone.BRAND,
+            onClick = onConfirm,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
 /** 잠시 중지 설정(Figma 3.1.2). 쉬는 시간은 20분이 골라져 있고, 사유를 고르기 전에는 확인이 꺼져 있다. */
 @Composable
 fun PauseDialog(onConfirm: (Int?, PauseReason) -> Unit, onDismiss: () -> Unit) {

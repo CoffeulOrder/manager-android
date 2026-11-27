@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ormo.manager.R
@@ -101,15 +102,21 @@ fun SelectChip(
     }
 }
 
-/** 메뉴 한 줄: "카페라떼 ×1" + "ㄴ HOT · 오리지널 원두". [soldOut]이면 이름 옆에 "품절" */
+/** 메뉴 한 줄: "카페라떼 ×1" + "ㄴ HOT · 오리지널 원두". [soldOut]이면 이름 옆에 "품절", [struck]이면 이름에 취소선 */
 @Composable
-fun MenuItemBlock(line: OrderLine, modifier: Modifier = Modifier, soldOut: Boolean = false) {
+fun MenuItemBlock(
+    line: OrderLine,
+    modifier: Modifier = Modifier,
+    soldOut: Boolean = false,
+    struck: Boolean = false,
+) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = stringResource(R.string.menu_line, line.name, line.qty),
                 style = OrmoType.BodyLgSemibold,
                 color = OrmoColors.TextPrimary,
+                textDecoration = if (struck) TextDecoration.LineThrough else null,
             )
             if (soldOut) {
                 Text(

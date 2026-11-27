@@ -240,6 +240,10 @@ fun ManagerScreen(
                     critical = true,
                     viewOrders = true,
                 )
+                is OrderEvent.CustomerCanceled -> showSnack(
+                    resources.getString(R.string.snackbar_customer_canceled, event.pickupNo),
+                    critical = true,
+                )
                 is OrderEvent.BlockedOffline -> showOfflineBlocked(event.forOrders)
                 OrderEvent.Reconnected -> showSnack(resources.getString(R.string.snackbar_reconnected))
                 is OrderEvent.PaymentCancelFailed -> showSnack(
@@ -291,7 +295,16 @@ fun ManagerScreen(
                 // 테스트 주문 버튼은 개발(debug) 빌드에만 보인다.
                 val debuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
                 val addTestOrder: (() -> Unit)? = if (debuggable) viewModel::addTestOrder else null
-                BusinessFooter(info = businessInfo, onAddTestOrder = addTestOrder)
+                val testCancel: ((Boolean) -> Unit)? = if (debuggable) {
+                    { delayed -> viewModel.cancelByCustomerForTest(if (delayed) 5_000L else 0L) }
+                } else {
+                    null
+                }
+                BusinessFooter(
+                    info = businessInfo,
+                    onAddTestOrder = addTestOrder,
+                    onTestCustomerCancel = testCancel,
+                )
             },
         ) { padding ->
             Box(
@@ -571,6 +584,8 @@ fun ManagerScreen(
             onDismiss = viewModel::onDialogDismiss,
         )
         is OrderDialog.Expired -> ExpiredDialog(order = dialog.order, onConfirm = viewModel::onDialogDismiss)
+        is OrderDialog.CustomerCanceled ->
+            CustomerCanceledDialog(order = dialog.order, onConfirm = viewModel::onDialogDismiss)
         null -> Unit
     }
 }

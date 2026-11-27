@@ -662,6 +662,73 @@ class OrderViewModelTest {
         assertEquals(OrderStatus.REQUESTED, vm.status("A"))
     }
 
+    // ---- 고객 취소 ----
+
+    private fun viewModelWith(repository: InMemoryOrderRepository) = OrderViewModel(repository, gateway, { now })
+
+    @Test
+    fun customerCancel_keepsTheCardFiveSeconds_withoutRefundingFromTheStore() = runTest {
+        val repository = InMemoryOrderRepository(listOf(order("A"), order("B"))) { now }
+        val vm = viewModelWith(repository)
+        val events = collectEvents(vm)
+
+        repository.transition("A", OrderStatus.CUSTOMER_CANCELED)
+
+        assertEquals(listOf("A", "B"), vm.uiState.value.pending.map { it.orderNo })
+        assertEquals(OrderStatus.CUSTOMER_CANCELED, vm.uiState.value.pending.first().status)
+        assertEquals(listOf<OrderEvent>(OrderEvent.CustomerCanceled(PICKUP_NO)), events)
+        assertEquals(listOf("A"), vm.uiState.value.history.map { it.orderNo })
+
+        advanceTimeBy(4_999)
+        runCurrent()
+        assertEquals(2, vm.uiState.value.pending.size)
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(listOf("B"), vm.uiState.value.pending.map { it.orderNo })
+        assertEquals(0, gateway.calls.size)
+    }
+
+    @Test
+    fun customerCancel_stopsTheNewOrderAlarm() = runTest {
+        val repository = InMemoryOrderRepository { now }
+        val vm = viewModelWith(repository)
+        repository.add(order("A"))
+        assertEquals(1, vm.uiState.value.newOrderCount)
+
+        repository.transition("A", OrderStatus.CUSTOMER_CANCELED)
+
+        assertEquals(0, vm.uiState.value.newOrderCount)
+    }
+
+    @Test
+    fun customerCancelWhileRejecting_replacesTheDialog_andDoesNotRefund() = runTest {
+        val repository = InMemoryOrderRepository(listOf(order("A"))) { now }
+        val vm = viewModelWith(repository)
+        val events = collectEvents(vm)
+        vm.onRejectClick("A")
+
+        repository.transition("A", OrderStatus.CUSTOMER_CANCELED)
+        assertTrue(vm.uiState.value.dialog is OrderDialog.CustomerCanceled)
+        assertTrue("창으로 알리므로 스낵바는 없다", events.isEmpty())
+        vm.onRejectConfirm(RejectReason.OVERLOAD)
+        vm.onDialogDismiss()
+
+        assertNull(vm.uiState.value.dialog)
+        assertTrue(vm.uiState.value.pending.isEmpty())
+        assertEquals(0, gateway.calls.size)
+    }
+
+    @Test
+    fun acceptingAnAlreadyCanceledOrder_explainsInsteadOfAccepting() = runTest {
+        val vm = viewModel(order("A", OrderStatus.CUSTOMER_CANCELED))
+
+        vm.onAccept("A")
+
+        assertTrue(vm.uiState.value.dialog is OrderDialog.CustomerCanceled)
+        assertEquals(OrderStatus.CUSTOMER_CANCELED, vm.status("A"))
+    }
+
     // ---- 인터넷 끊김 ----
 
     @Test

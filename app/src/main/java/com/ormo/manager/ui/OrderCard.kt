@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +41,8 @@ fun OrderCard(
     statusText: String,
     statusColor: Color,
     modifier: Modifier = Modifier,
+    /** 고객이 취소한 모습: 메뉴에 취소선, 버튼 없음 */
+    canceled: Boolean = false,
     actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
 ) {
     Column(
@@ -91,9 +95,13 @@ fun OrderCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         ) {
-            order.lines.forEach { MenuItemBlock(it) }
+            order.lines.forEach { MenuItemBlock(it, struck = canceled) }
         }
 
+        if (canceled) {
+            Spacer(Modifier.height(16.dp))
+            return@Column
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
