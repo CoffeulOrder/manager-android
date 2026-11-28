@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ormo.manager.R
 import com.ormo.manager.domain.MenuCategory
@@ -90,6 +91,8 @@ class MenuActions(
     val onSaveMenu: (String?, MenuItem) -> Boolean,
     val onDeleteMenu: (String) -> Unit,
     val onAddOptionGroup: (OptionGroup, Set<String>) -> Boolean,
+    val onUploadPhoto: suspend (ByteArray) -> Result<String>,
+    val onNoCamera: () -> Unit,
     /** 저장 버튼이 있는 편집 패널이 열리고 닫힐 때 */
     val onEditorOpenChange: (Boolean) -> Unit = {},
 )
@@ -105,6 +108,8 @@ fun MenuScreen(
     access: MenuAccess,
     actions: MenuActions,
     modifier: Modifier = Modifier,
+    /** 왼쪽 아래에 계속 떠 있는 알림의 높이. 목록이 그 위에서 끝나 마지막 줄이 가려지지 않게 한다. */
+    bottomInset: Dp = 0.dp,
 ) {
     var section by rememberSaveable { mutableStateOf(MenuSection.ITEMS) }
     var category by rememberSaveable { mutableStateOf(MenuCategory.COFFEE) }
@@ -158,7 +163,7 @@ fun MenuScreen(
         if (opened == null) {
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp + bottomInset),
             ) {
                 when (section) {
                     MenuSection.ITEMS -> {
@@ -193,9 +198,11 @@ fun MenuScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
             ) {
+                // 알림은 왼쪽 목록만 가리므로 오른쪽 패널은 줄이지 않는다.
                 val listModifier = Modifier
                     .width(420.dp)
                     .fillMaxHeight()
+                    .padding(bottom = bottomInset)
                 val panelModifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
@@ -230,6 +237,8 @@ fun MenuScreen(
                                 },
                                 onAddOptionGroup = actions.onAddOptionGroup,
                                 onClose = close,
+                                onUploadPhoto = actions.onUploadPhoto,
+                                onNoCamera = actions.onNoCamera,
                                 modifier = panelModifier,
                             )
                         }

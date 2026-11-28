@@ -34,13 +34,29 @@ class SalesTest {
                 order(OrderStatus.REQUESTED, 10_000),
                 order(OrderStatus.REJECTED, 20_000),
             ),
-        ) { it.toInt() }
+            dateOf = { today },
+            hourOf = { it.toInt() },
+        )
 
         assertEquals(12_000, day.total)
         assertEquals(mapOf(9 to 4_000, 12 to 8_000), day.hourly)
         assertEquals(3, day.orderCount)
         assertEquals(1, day.refundCount)
         assertEquals(3_000, day.refundAmount)
+    }
+
+    @Test
+    fun todaySales_leavesOutOrdersFromEarlierDays() {
+        val day = todaySales(
+            today,
+            listOf(order(OrderStatus.COMPLETED, 4_000, 9), order(OrderStatus.COMPLETED, 5_000, 12)),
+            // 접수 시각 9는 어제, 12는 오늘로 본다.
+            dateOf = { if (it == 9L) today.minusDays(1) else today },
+            hourOf = { it.toInt() },
+        )
+
+        assertEquals(5_000, day.total)
+        assertEquals(1, day.orderCount)
     }
 
     @Test

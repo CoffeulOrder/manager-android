@@ -273,6 +273,11 @@
     <string name="password_mismatch">비밀번호가 서로 달라요</string>
     <string name="password_failed">비밀번호를 바꾸지 못했어요. 잠시 후 다시 시도해 주세요</string>
     <string name="password_start">시작하기</string>
+    <!-- 설정에서 비밀번호 바꾸기 -->
+    <string name="password_current">현재 비밀번호</string>
+    <string name="password_wrong_current">현재 비밀번호를 다시 확인해 주세요</string>
+    <string name="password_submit">변경하기</string>
+    <string name="snackbar_password_changed">비밀번호를 변경했어요</string>
     <string name="password_show">비밀번호 보기</string>
     <string name="password_hide">비밀번호 숨기기</string>
 
@@ -306,6 +311,10 @@
     <string name="test_update_optional">선택 업데이트 (마감 뒤에 보임)</string>
     <string name="test_update_required">필수 업데이트</string>
     <string name="test_update_clear">업데이트 없음</string>
+    <string name="test_photo_fail">사진 올리기 실패시키기</string>
+    <string name="test_photo_recover">사진 올리기 다시 성공시키기</string>
+    <string name="test_sales_fail">매출 불러오기 실패시키기</string>
+    <string name="test_sales_recover">매출 다시 성공시키기</string>
 
     <!-- 고객 취소 -->
     <string name="snackbar_customer_canceled">%1$d번 주문을 고객이 취소했어요</string>
@@ -318,6 +327,27 @@
     <string name="snackbar_reconnected">인터넷이 다시 연결됐어요.</string>
     <string name="snackbar_offline_blocked_orders">인터넷이 끊겨서 새 주문을 받을 수 없어요</string>
     <string name="snackbar_offline_blocked_change">인터넷이 끊겨서 바꿀 수 없어요</string>
+
+    <string name="sales_failed_title">매출을 불러오지 못했어요</string>
+    <string name="sales_failed_body">잠시 후 다시 시도해 주세요</string>
+
+    <!-- 메뉴 사진 -->
+    <string name="photo_label">사진</string>
+    <string name="photo_add">사진 추가</string>
+    <string name="photo_change">사진 바꾸기</string>
+    <string name="photo_limit">10MB 이하</string>
+    <string name="photo_uploading">올리는 중</string>
+    <string name="photo_retry">다시 올리기</string>
+    <string name="photo_take">사진 찍기</string>
+    <string name="photo_album">앨범에서 고르기</string>
+    <string name="photo_remove">사진 제거하기</string>
+    <string name="photo_crop_title">사진을 맞춰 주세요</string>
+    <string name="photo_pick_again">다시 고르기</string>
+    <string name="photo_use">사진 사용하기</string>
+    <string name="photo_too_big">10MB 이하 사진만 올릴 수 있어요</string>
+    <string name="photo_unsupported">JPG · PNG · HEIC만 올릴 수 있어요</string>
+    <string name="photo_unreadable">사진을 열 수 없어요</string>
+    <string name="photo_no_camera">카메라를 열 수 없어요</string>
 
     <!-- 거절 사유 (이 순서로 표시) -->
     <string name="reason_out_of_stock">품절 또는 재료 소진</string>

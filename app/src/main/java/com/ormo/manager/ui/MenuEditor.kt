@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -80,6 +83,7 @@ private data class MenuDraft(
     val category: MenuCategory,
     val optionGroups: List<String>,
     val visible: Boolean,
+    val photo: String?,
 ) {
     fun toItem() = MenuItem(
         name = name.trim(),
@@ -88,6 +92,7 @@ private data class MenuDraft(
         description = description.trim(),
         optionGroups = optionGroups,
         hidden = !visible,
+        photo = photo,
     )
 }
 
@@ -105,6 +110,8 @@ fun MenuEditorPanel(
     onDelete: () -> Unit,
     onAddOptionGroup: (OptionGroup, Set<String>) -> Boolean,
     onClose: () -> Unit,
+    onUploadPhoto: suspend (ByteArray) -> Result<String>,
+    onNoCamera: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var draft by remember {
@@ -116,6 +123,7 @@ fun MenuEditorPanel(
                 category = original?.category ?: newCategory,
                 optionGroups = original?.optionGroups.orEmpty(),
                 visible = original?.hidden != true,
+                photo = original?.photo,
             ),
         )
     }
@@ -127,67 +135,84 @@ fun MenuEditorPanel(
         linked = draft.optionGroups
         view = PanelView.LINK
     }
+    val photo = rememberMenuPhotoState(onUploadPhoto) { draft = draft.copy(photo = it) }
+    var panelPosition by remember { mutableStateOf(Offset.Zero) }
 
-    when (view) {
-        PanelView.DETAIL -> MenuDetail(
-            title = title,
-            original = original,
-            draft = draft,
-            onDraft = { draft = it },
-            nameTaken = menus.isNameTaken(draft.name.trim(), original?.name),
-            canSave = menus.canSave(original?.name, draft.toItem()),
-            optionGroups = optionGroups,
-            onLink = openLink,
-            onSave = { onSave(draft.toItem()) },
-            onDelete = { confirmingDelete = true },
-            onClose = onClose,
-            modifier = modifier,
-        )
-        PanelView.LINK -> {
-            BackHandler { view = PanelView.DETAIL }
-            OptionLink(
-                menuName = draft.name.trim().ifEmpty { title },
+    // 사진 메뉴를 패널 위에 겹쳐 그린다(같은 화면이라 화면 비율 Density가 유지된다).
+    Box(modifier.onGloballyPositioned { panelPosition = it.positionInRoot() }) {
+        val fill = Modifier.fillMaxSize()
+        when (view) {
+            PanelView.DETAIL -> MenuDetail(
+                title = title,
+                original = original,
+                draft = draft,
+                onDraft = { draft = it },
+                nameTaken = menus.isNameTaken(draft.name.trim(), original?.name),
+                // 사진을 올리는 동안에는 저장을 잠깐 막는다.
+                canSave = menus.canSave(original?.name, draft.toItem()) && !photo.uploading,
+                photo = photo,
                 optionGroups = optionGroups,
-                linked = linked,
-                onToggle = { linked = if (it in linked) linked - it else linked + it },
-                onNewOption = { view = PanelView.NEW_OPTION },
-                onApply = {
-                    draft = draft.copy(optionGroups = linked)
-                    view = PanelView.DETAIL
-                },
-                onBack = { view = PanelView.DETAIL },
-                modifier = modifier,
+                onLink = openLink,
+                onSave = { onSave(draft.toItem()) },
+                onDelete = { confirmingDelete = true },
+                onClose = onClose,
+                modifier = fill,
             )
-        }
-        PanelView.NEW_OPTION -> {
-            BackHandler { view = PanelView.LINK }
-            // 아직 저장하지 않은 이름이 아니라 목록에 있는 이름으로 보여준다.
-            val current = original?.name ?: draft.name.trim()
-            val listed = if (original == null && current.isNotEmpty() && menus.none { it.name == current }) {
-                listOf(draft.toItem()) + menus
-            } else {
-                menus
+            PanelView.LINK -> {
+                BackHandler { view = PanelView.DETAIL }
+                OptionLink(
+                    menuName = draft.name.trim().ifEmpty { title },
+                    optionGroups = optionGroups,
+                    linked = linked,
+                    onToggle = { linked = if (it in linked) linked - it else linked + it },
+                    onNewOption = { view = PanelView.NEW_OPTION },
+                    onApply = {
+                        draft = draft.copy(optionGroups = linked)
+                        view = PanelView.DETAIL
+                    },
+                    onBack = { view = PanelView.DETAIL },
+                    modifier = fill,
+                )
             }
-            NewOptionPanel(
-                menus = listed,
-                optionGroups = optionGroups,
-                preselected = setOfNotNull(current.takeIf { it.isNotEmpty() }),
-                onAdd = { group, chosen ->
-                    // 지금 고치는 메뉴는 [저장하기]에서 덮어쓰이지 않도록 입력값에도 넣는다.
-                    val others = if (original == null) chosen - current else chosen
-                    if (onAddOptionGroup(group, others)) {
-                        if (current in chosen) {
-                            draft = draft.copy(optionGroups = draft.optionGroups + group.name)
-                            linked = linked + group.name
+            PanelView.NEW_OPTION -> {
+                BackHandler { view = PanelView.LINK }
+                // 아직 저장하지 않은 이름이 아니라 목록에 있는 이름으로 보여준다.
+                val current = original?.name ?: draft.name.trim()
+                val listed = if (original == null && current.isNotEmpty() && menus.none { it.name == current }) {
+                    listOf(draft.toItem()) + menus
+                } else {
+                    menus
+                }
+                NewOptionPanel(
+                    menus = listed,
+                    optionGroups = optionGroups,
+                    preselected = setOfNotNull(current.takeIf { it.isNotEmpty() }),
+                    onAdd = { group, chosen ->
+                        // 지금 고치는 메뉴는 [저장하기]에서 덮어쓰이지 않도록 입력값에도 넣는다.
+                        val others = if (original == null) chosen - current else chosen
+                        if (onAddOptionGroup(group, others)) {
+                            if (current in chosen) {
+                                draft = draft.copy(optionGroups = draft.optionGroups + group.name)
+                                linked = linked + group.name
+                            }
+                            view = PanelView.LINK
                         }
-                        view = PanelView.LINK
-                    }
-                },
-                onClose = { view = PanelView.LINK },
-                modifier = modifier,
-            )
+                    },
+                    onClose = { view = PanelView.LINK },
+                    modifier = fill,
+                )
+            }
+        }
+        if (view == PanelView.DETAIL) {
+            PhotoMenuHost(photo, hasPhoto = draft.photo != null, panelPosition, onNoCamera)
         }
     }
+    CropDialog(
+        state = photo,
+        name = draft.name.trim(),
+        price = draft.price.toIntOrNull() ?: 0,
+        description = draft.description.trim(),
+    )
 
     if (confirmingDelete && original != null) {
         AlertBox(
@@ -222,6 +247,7 @@ private fun MenuDetail(
     onDraft: (MenuDraft) -> Unit,
     nameTaken: Boolean,
     canSave: Boolean,
+    photo: MenuPhotoState,
     optionGroups: List<OptionGroup>,
     onLink: () -> Unit,
     onSave: () -> Unit,
@@ -266,32 +292,42 @@ private fun MenuDetail(
         },
     ) {
         if (visibilityOnTop) visibility()
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Labeled(stringResource(R.string.field_name), Modifier.weight(1f)) {
-                FormField(
-                    value = draft.name,
-                    onValueChange = { onDraft(draft.copy(name = it.take(NAME_LIMIT))) },
-                    hint = stringResource(R.string.menu_name_hint),
-                    label = stringResource(R.string.field_name),
-                    error = nameTaken,
-                )
-                if (nameTaken) ErrorText(stringResource(R.string.menu_name_taken))
-            }
-            Labeled(stringResource(R.string.field_price), Modifier.width(200.dp)) {
-                PriceField(
-                    digits = draft.price,
-                    onDigitsChange = { onDraft(draft.copy(price = it)) },
-                    label = stringResource(R.string.field_price),
-                )
-            }
-        }
-        Labeled(stringResource(R.string.field_description)) {
-            FormField(
-                value = draft.description,
-                onValueChange = { onDraft(draft.copy(description = it.take(DESCRIPTION_LIMIT))) },
-                hint = stringResource(R.string.menu_description_hint),
-                label = stringResource(R.string.field_description),
+        // 왼쪽 사진 칸, 오른쪽 이름 · 가격 · 설명
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            PhotoSlot(
+                state = photo,
+                photo = draft.photo,
+                modifier = Modifier.onGloballyPositioned { photo.slotPosition = it.positionInRoot() },
             )
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.weight(1f)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Labeled(stringResource(R.string.field_name), Modifier.weight(1f)) {
+                        FormField(
+                            value = draft.name,
+                            onValueChange = { onDraft(draft.copy(name = it.take(NAME_LIMIT))) },
+                            hint = stringResource(R.string.menu_name_hint),
+                            label = stringResource(R.string.field_name),
+                            error = nameTaken,
+                        )
+                        if (nameTaken) ErrorText(stringResource(R.string.menu_name_taken))
+                    }
+                    Labeled(stringResource(R.string.field_price), Modifier.width(200.dp)) {
+                        PriceField(
+                            digits = draft.price,
+                            onDigitsChange = { onDraft(draft.copy(price = it)) },
+                            label = stringResource(R.string.field_price),
+                        )
+                    }
+                }
+                Labeled(stringResource(R.string.field_description)) {
+                    FormField(
+                        value = draft.description,
+                        onValueChange = { onDraft(draft.copy(description = it.take(DESCRIPTION_LIMIT))) },
+                        hint = stringResource(R.string.menu_description_hint),
+                        label = stringResource(R.string.field_description),
+                    )
+                }
+            }
         }
         Labeled(stringResource(R.string.field_category)) {
             Row(

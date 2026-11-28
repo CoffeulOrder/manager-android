@@ -63,6 +63,12 @@ private val StatusColumnWidthNarrow = 120.dp
 private val ProcessedColumnWidth = 200.dp
 
 /**
+ * 아래 여백이 20인 화면에서 카드를 알림 위에서 끝내려면 비워야 하는 높이.
+ * 화면 여백(20)이 알림의 아래 여백(24)보다 좁아 4만큼 더 비운다.
+ */
+internal fun cardBottomInset(snackHeight: Dp): Dp = if (snackHeight > 0.dp) snackHeight + 4.dp else 0.dp
+
+/**
  * 오늘 내역(Figma 2.1.x). 필터 칩과 번호 검색, 표, 오른쪽 상세.
  * 상세가 열리면 표는 번호·이름 / 메뉴 / 상태만 남기고 검색 칸은 숨긴다.
  */
@@ -75,6 +81,8 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
     /** 인터넷이 끊기면 환불 버튼을 흐리게 보인다. */
     offline: Boolean = false,
+    /** 왼쪽 아래에 계속 떠 있는 알림의 높이. 표가 그 위에서 끝나 마지막 줄이 가려지지 않게 한다. */
+    bottomInset: Dp = 0.dp,
 ) {
     var filter by rememberSaveable { mutableStateOf(HistoryFilter.ALL) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -88,10 +96,12 @@ fun HistoryScreen(
             .background(OrmoColors.BackgroundLower)
             .padding(horizontal = 24.dp, vertical = 20.dp),
     ) {
+        // 알림은 표만 가리므로 오른쪽 상세는 줄이지 않는다.
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
+                .padding(bottom = cardBottomInset(bottomInset))
                 .clip(RoundedCornerShape(16.dp))
                 .background(OrmoColors.BackgroundDefault),
         ) {

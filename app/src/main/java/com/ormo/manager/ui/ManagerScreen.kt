@@ -42,6 +42,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.ormo.manager.R
+import com.ormo.manager.data.LocalMenuPhotoStore
 import com.ormo.manager.domain.BusinessInfo
 import com.ormo.manager.domain.StoreStatus
 import com.ormo.manager.domain.formatClock
@@ -60,12 +61,18 @@ private const val STORE_KEY = "store"
 private const val CONNECTION_KEY = "connection"
 private const val OFFLINE_BLOCKED_KEY = "offline-blocked"
 
+/** 스낵바 한 개의 높이(52)와 사이 간격(8) */
+private val SNACK_SLOT = 60.dp
+
 @Composable
 fun ManagerScreen(
     viewModel: OrderViewModel,
     pinViewModel: PinViewModel,
     settingsViewModel: SettingsViewModel,
     serviceViewModel: ServiceViewModel,
+    salesViewModel: SalesViewModel,
+    photoStore: LocalMenuPhotoStore,
+    loginViewModel: LoginViewModel,
     businessInfo: BusinessInfo,
     onLogout: () -> Unit,
 ) {
@@ -82,6 +89,7 @@ fun ManagerScreen(
     val businessHours by settingsViewModel.businessHours.collectAsStateWithLifecycle()
     val optionGroups by viewModel.optionGroups.collectAsStateWithLifecycle()
     val service by serviceViewModel.uiState.collectAsStateWithLifecycle()
+    val salesLoad by salesViewModel.uiState.collectAsStateWithLifecycle()
     var testStatusOpen by remember { mutableStateOf(false) }
     var wasUnderMaintenance by rememberSaveable { mutableStateOf(false) }
 
@@ -122,6 +130,16 @@ fun ManagerScreen(
         // 앱이 다시 만들어져 잠긴 채 매출 탭이 복원되면 주문 탭으로 보낸다.
         if (tab == ManagerTab.SALES && !pinViewModel.uiState.value.unlocked) tab = ManagerTab.ORDERS
         if (tab != ManagerTab.SALES) pinViewModel.lock()
+    }
+    val passwordChange by loginViewModel.passwordChange.collectAsStateWithLifecycle()
+    // 설정을 벗어나면 입력하던 비밀번호는 버린다.
+    LaunchedEffect(tab) {
+        if (tab != ManagerTab.SETTINGS) loginViewModel.closePasswordChange()
+    }
+    LaunchedEffect(passwordChange.changed) {
+        if (!passwordChange.changed) return@LaunchedEffect
+        showSnack(resources.getString(R.string.snackbar_password_changed))
+        loginViewModel.onPasswordChangedShown()
     }
     LaunchedEffect(pin.notice) {
         val notice = pin.notice ?: return@LaunchedEffect
@@ -283,8 +301,18 @@ fun ManagerScreen(
         }
     }
 
+    // 마감 안내는 메뉴 편집 패널의 아래 버튼을 가려서, 패널이 열린 동안에는 숨긴다.
+    // 점검 중에는 영업을 다시 시작할 수 없어 안내도 숨긴다.
+    val shownSnacks = snacks.filterNot { (menuEditing || underMaintenance) && it.kind == SnackKind.STORE }
+    // 저절로 사라지지 않는 알림만큼 목록의 아래를 비운다(잠깐 뜨는 알림에는 버튼이 움직이지 않는다).
+    val persistentSnackHeight = SNACK_SLOT * shownSnacks.count { it.kind.millis == null }
+    // 마감 안내만 길어서 주문 보드의 둘째 열(제조중)까지 걸친다.
+    val reachesSecondColumn = state.storeStatus == StoreStatus.Closed &&
+        shownSnacks.any { it.kind == SnackKind.STORE }
+
     val notReadyMessage = stringResource(R.string.not_ready_yet)
     val menuLockedMessage = stringResource(R.string.menu_locked_while_open)
+    val noCameraMessage = stringResource(R.string.photo_no_camera)
 
     Box(
         Modifier
@@ -346,6 +374,20 @@ fun ManagerScreen(
                 val maintenance = service.maintenance
                 if (maintenance != null) {
                     MaintenanceScreen(maintenance)
+                } else if (tab == ManagerTab.SETTINGS && passwordChange.open) {
+                    PasswordChangeScreen(
+                        state = passwordChange,
+                        onSubmit = { current, new, confirm ->
+                            if (state.offline) {
+                                showOfflineBlocked(forOrders = false)
+                            } else {
+                                loginViewModel.changeOwnPassword(current, new, confirm)
+                            }
+                        },
+                        onInput = loginViewModel::onPasswordChangeInput,
+                        onClose = loginViewModel::closePasswordChange,
+                        bottomInset = persistentSnackHeight,
+                    )
                 } else if (tab == ManagerTab.SETTINGS) {
                     SettingsScreen(
                         businessHours = businessHours,
@@ -358,9 +400,9 @@ fun ManagerScreen(
                         },
                         storeStatus = state.storeStatus,
                         onCloseStore = viewModel::onCloseClick,
+                        onChangePassword = loginViewModel::openPasswordChange,
                         onChangePin = pinViewModel::requestChange,
                         onLogout = onLogout,
-                        onNotReady = { showSnack(notReadyMessage) },
                     )
                 } else if (tab == ManagerTab.SALES) {
                     SalesScreen(
@@ -368,9 +410,14 @@ fun ManagerScreen(
                         now = now,
                         monthView = monthView,
                         onMonthViewChange = { monthView = it },
+                        load = salesLoad,
+                        onLoad = salesViewModel::load,
+                        onRetry = salesViewModel::retry,
+                        bottomInset = persistentSnackHeight,
                     )
                 } else if (tab == ManagerTab.MENU) {
                     MenuScreen(
+                        bottomInset = persistentSnackHeight,
                         menus = menus,
                         optionGroups = optionGroups,
                         access = MenuAccess(
@@ -386,6 +433,8 @@ fun ManagerScreen(
                             onSaveMenu = viewModel::onSaveMenu,
                             onDeleteMenu = viewModel::onDeleteMenu,
                             onAddOptionGroup = viewModel::onAddOptionGroup,
+                            onUploadPhoto = photoStore::upload,
+                            onNoCamera = { showSnack(noCameraMessage, critical = true) },
                             onEditorOpenChange = { menuEditing = it },
                         ),
                     )
@@ -396,6 +445,7 @@ fun ManagerScreen(
                         onSelect = { selectedOrderNo = it },
                         onRefund = viewModel::onRefundClick,
                         offline = state.offline,
+                        bottomInset = persistentSnackHeight,
                     )
                 } else {
                     BoardScreen(
@@ -415,6 +465,8 @@ fun ManagerScreen(
                         storeClosed = state.storeStatus == StoreStatus.Closed,
                         offline = state.offline,
                         load = state.load,
+                        pendingInset = persistentSnackHeight,
+                        preparingInset = if (reachesSecondColumn) persistentSnackHeight else 0.dp,
                     )
                 }
 
@@ -425,11 +477,7 @@ fun ManagerScreen(
                         .align(Alignment.BottomStart)
                         .padding(start = 24.dp, bottom = 24.dp),
                 ) {
-                    // 마감 안내는 메뉴 편집 패널의 아래 버튼을 가려서, 패널이 열린 동안에는 숨긴다.
-                    snacks.asReversed().filterNot {
-                        // 점검 중에는 영업을 다시 시작할 수 없어 안내도 숨긴다.
-                        (menuEditing || underMaintenance) && it.kind == SnackKind.STORE
-                    }.forEach { snack ->
+                    shownSnacks.asReversed().forEach { snack ->
                         key(snack.key) {
                             val millis = snack.kind.millis
                             if (millis != null) {
@@ -631,6 +679,10 @@ fun ManagerScreen(
         TestStatusDialog(
             status = service,
             onSelect = serviceViewModel::changeForTest,
+            salesFailing = salesViewModel.failingForTest,
+            onToggleSalesFailure = salesViewModel::toggleFailureForTest,
+            photoFailing = photoStore.failing,
+            onTogglePhotoFailure = { photoStore.failing = !photoStore.failing },
             onDismiss = { testStatusOpen = false },
         )
     }

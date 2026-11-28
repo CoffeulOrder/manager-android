@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,13 +44,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ormo.manager.R
-import com.ormo.manager.data.MockSales
 import com.ormo.manager.domain.DaySales
 import com.ormo.manager.domain.Order
+import com.ormo.manager.domain.businessDateOf
 import com.ormo.manager.domain.daysOf
 import com.ormo.manager.domain.formatWon
 import com.ormo.manager.domain.summary
@@ -75,26 +77,39 @@ fun SalesScreen(
     now: Long,
     monthView: MonthView,
     onMonthViewChange: (MonthView) -> Unit,
+    load: SalesLoad,
+    onLoad: (List<LocalDate>, LocalDate) -> Unit,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 왼쪽 아래에 계속 떠 있는 알림의 높이. 그래프·달력 카드가 그 위에서 끝난다. */
+    bottomInset: Dp = 0.dp,
 ) {
     val zone = ZoneId.systemDefault()
-    val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+    val today = businessDateOf(now, zone)
     var period by rememberSaveable { mutableStateOf(SalesPeriod.DAY) }
     var anchorDay by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
     val anchor = LocalDate.ofEpochDay(anchorDay)
 
     val live = remember(orders, today) {
-        todaySales(today, orders) { Instant.ofEpochMilli(it).atZone(zone).hour }
+        todaySales(
+            today = today,
+            orders = orders,
+            dateOf = { businessDateOf(it, zone) },
+            hourOf = { Instant.ofEpochMilli(it).atZone(zone).hour },
+        )
     }
-    fun salesOf(date: LocalDate): DaySales = if (date == today) live else MockSales.of(date, today)
-
     val dates = when (period) {
         SalesPeriod.DAY -> listOf(anchor)
         SalesPeriod.WEEK -> weekOf(anchor)
         SalesPeriod.MONTH -> daysOf(YearMonth.from(anchor))
     }
-    val days = dates.map(::salesOf)
-    val summary = days.summary()
+    // 매출 화면에 들어오거나 기간을 바꿀 때마다 불러온다.
+    LaunchedEffect(period, anchorDay, today) { onLoad(dates, today) }
+    // 다른 기간의 값은 보여주지 않는다. 오늘은 앱 안의 주문으로 계산한다.
+    val days = (load as? SalesLoad.Loaded)
+        ?.takeIf { it.dates == dates }
+        ?.days
+        ?.map { if (it.date == today) live else it }
 
     fun move(step: Long) {
         val moved = when (period) {
@@ -135,6 +150,7 @@ fun SalesScreen(
                     anchorDay = today.toEpochDay()
                 },
                 height = 48.dp,
+                textStyle = OrmoType.BodyMdSemibold,
             )
             Spacer(Modifier.weight(1f))
             ArrowButton(next = false, enabled = true, label = stringResource(R.string.sales_previous)) { move(-1) }
@@ -145,6 +161,14 @@ fun SalesScreen(
                 label = stringResource(R.string.sales_next),
             ) { move(1) }
         }
+
+        if (load == SalesLoad.Failed) {
+            // 잘못된 0원 대신 실패를 알린다.
+            LoadFailed(onRetry, Modifier.fillMaxSize())
+            return@Column
+        }
+        if (days == null) return@Column
+        val summary = days.summary()
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             StatCard(stringResource(R.string.sales_total), formatWon(summary.total))
@@ -170,10 +194,12 @@ fun SalesScreen(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize()) {
+            // 알림은 왼쪽 카드만 가리므로 오른쪽 순위는 줄이지 않는다.
             Card(
                 Modifier
                     .weight(1f)
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .padding(bottom = cardBottomInset(bottomInset)),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -246,7 +272,13 @@ private fun periodTitle(period: SalesPeriod, anchor: LocalDate): String {
 
 /** DS Segmented Control: 회색 바탕 위 흰 알약 */
 @Composable
-private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, height: Dp) {
+private fun Segmented(
+    options: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    height: Dp,
+    textStyle: TextStyle = OrmoType.BodySmSemibold,
+) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
@@ -270,7 +302,7 @@ private fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> U
             ) {
                 Text(
                     text = text,
-                    style = OrmoType.BodySmSemibold,
+                    style = textStyle,
                     color = if (isSelected) OrmoColors.TextPrimary else OrmoColors.TextTertiary,
                 )
             }
@@ -448,6 +480,8 @@ private fun BarChart(
     }
 }
 
+private val CALENDAR_MIN_ROW_HEIGHT = 48.dp
+
 /** 일요일부터 시작하는 달력. 가장 많이 판 날은 파랗게 표시한다. */
 @Composable
 private fun Calendar(days: List<DaySales>, onDayClick: (LocalDate) -> Unit) {
@@ -471,45 +505,51 @@ private fun Calendar(days: List<DaySales>, onDayClick: (LocalDate) -> Unit) {
                 )
             }
         }
-        weeks.forEach { week ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            ) {
-                for (column in 0 until 7) {
-                    val day = week.getOrNull(column)
-                    if (day == null) {
-                        Spacer(Modifier.weight(1f))
-                    } else {
-                        val best = max > 0 && day.total == max
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(
-                                    if (best) OrmoColors.FillBrandWeak else androidx.compose.ui.graphics.Color.Transparent,
-                                )
-                                .clickable(role = Role.Button) { onDayClick(day.date) },
-                        ) {
-                            Text(
-                                "${day.date.dayOfMonth}",
-                                style = OrmoType.BodySmRegular,
-                                color = if (best) OrmoColors.TextBrand else OrmoColors.TextTertiary,
-                            )
-                            // 매출이 없는 날은 비워 둔다.
-                            if (day.total > 0) {
-                                Text(
-                                    formatWon(day.total),
-                                    style = OrmoType.BodySmSemibold,
-                                    color = if (best) OrmoColors.TextBrand else OrmoColors.TextSecondary,
-                                    maxLines = 1,
-                                )
+        // 칸이 남는 높이를 똑같이 나눠 갖는다. 알림 때문에 낮아지면 금액이 잘리지 않는 높이까지만 줄이고 스크롤한다.
+        BoxWithConstraints(Modifier.weight(1f)) {
+            val rowHeight = maxOf(maxHeight / weeks.size, CALENDAR_MIN_ROW_HEIGHT)
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                weeks.forEach { week ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .height(rowHeight)
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                    ) {
+                        for (column in 0 until 7) {
+                            val day = week.getOrNull(column)
+                            if (day == null) {
+                                Spacer(Modifier.weight(1f))
+                            } else {
+                                val best = max > 0 && day.total == max
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (best) OrmoColors.FillBrandWeak else androidx.compose.ui.graphics.Color.Transparent,
+                                        )
+                                        .clickable(role = Role.Button) { onDayClick(day.date) },
+                                ) {
+                                    Text(
+                                        "${day.date.dayOfMonth}",
+                                        style = OrmoType.BodySmRegular,
+                                        color = if (best) OrmoColors.TextBrand else OrmoColors.TextTertiary,
+                                    )
+                                    // 매출이 없는 날은 비워 둔다.
+                                    if (day.total > 0) {
+                                        Text(
+                                            formatWon(day.total),
+                                            style = OrmoType.BodySmSemibold,
+                                            color = if (best) OrmoColors.TextBrand else OrmoColors.TextSecondary,
+                                            maxLines = 1,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -579,5 +619,47 @@ private fun RankingRow(title: String, subtitle: String, amount: String, onClick:
             Text(subtitle, style = OrmoType.BodySmRegular, color = OrmoColors.TextTertiary)
         }
         Text(amount, style = OrmoType.BodyMdRegular, color = OrmoColors.TextSecondary)
+    }
+}
+
+/** 불러오기 실패(Figma 6.1.4) */
+@Composable
+private fun LoadFailed(onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier,
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(60.dp)
+                .background(OrmoColors.FillDangerWeak, CircleShape),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_alert),
+                contentDescription = null,
+                tint = OrmoColors.TextDanger,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        Text(
+            stringResource(R.string.sales_failed_title),
+            style = OrmoType.BodyLgSemibold,
+            color = OrmoColors.TextStrong,
+            modifier = Modifier.padding(top = 20.dp),
+        )
+        Text(
+            stringResource(R.string.sales_failed_body),
+            style = OrmoType.BodyMdRegular,
+            color = OrmoColors.TextSecondary,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        ActionButton(
+            text = stringResource(R.string.snackbar_retry),
+            tone = ButtonTone.BRAND,
+            onClick = onRetry,
+            modifier = Modifier.padding(top = 32.dp),
+        )
     }
 }

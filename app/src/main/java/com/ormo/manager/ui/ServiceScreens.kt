@@ -117,6 +117,10 @@ fun UpdateDialog(update: AppUpdate, onUpdate: () -> Unit, onLater: () -> Unit) {
 fun TestStatusDialog(
     status: ServiceUiState,
     onSelect: ((ServiceStatus) -> ServiceStatus) -> Unit,
+    salesFailing: Boolean,
+    onToggleSalesFailure: () -> Unit,
+    photoFailing: Boolean,
+    onTogglePhotoFailure: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     DialogSurface(width = 371.dp, onDismiss = onDismiss) {
@@ -142,6 +146,24 @@ fun TestStatusDialog(
             choice(R.string.test_update_optional) { it.copy(update = AppUpdate(required = false)) }
             choice(R.string.test_update_required) { it.copy(update = AppUpdate(required = true)) }
             choice(R.string.test_update_clear) { it.copy(update = null) }
+            ActionButton(
+                text = stringResource(if (photoFailing) R.string.test_photo_recover else R.string.test_photo_fail),
+                tone = ButtonTone.NEUTRAL_WEAK,
+                onClick = {
+                    onTogglePhotoFailure()
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ActionButton(
+                text = stringResource(if (salesFailing) R.string.test_sales_recover else R.string.test_sales_fail),
+                tone = ButtonTone.NEUTRAL_WEAK,
+                onClick = {
+                    onToggleSalesFailure()
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

@@ -12,6 +12,23 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.OrmoManager">
 
+        <!-- 카메라 앱을 띄워도 가로 고정 화면을 세로로 돌리지 않는다(태블릿의 카메라 호환 모드 거부).
+             앱이 직접 카메라 화면을 그리지 않아 문제가 없다. -->
+        <property
+            android:name="android.window.PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION"
+            android:value="false" />
+
+        <!-- 카메라 앱에 임시 사진 파일 하나를 열어주기 위한 것 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

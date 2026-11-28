@@ -59,16 +59,16 @@ import com.ormo.manager.ui.theme.OrmoType
 
 private enum class SettingsDialog { HOURS, LOGOUT_BLOCKED, LOGOUT_CONFIRM }
 
-/** 설정(Figma 4.1.1). 비밀번호 바꾸기 화면은 아직 없다([onNotReady]). */
+/** 설정(Figma 4.1.1) */
 @Composable
 fun SettingsScreen(
     businessHours: BusinessHours,
     onSaveBusinessHours: (BusinessHours) -> Unit,
     storeStatus: StoreStatus,
     onCloseStore: () -> Unit,
+    onChangePassword: () -> Unit,
     onChangePin: () -> Unit,
     onLogout: () -> Unit,
-    onNotReady: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var dialog by rememberSaveable { mutableStateOf<SettingsDialog?>(null) }
@@ -94,7 +94,7 @@ fun SettingsScreen(
             )
         }
         Section(stringResource(R.string.settings_section_account)) {
-            SettingRow(stringResource(R.string.settings_password), chevron = true, onClick = onNotReady)
+            SettingRow(stringResource(R.string.settings_password), chevron = true, onClick = onChangePassword)
             SettingRow(stringResource(R.string.settings_pin), chevron = true, onClick = onChangePin)
             SettingRow(
                 title = stringResource(R.string.settings_logout),

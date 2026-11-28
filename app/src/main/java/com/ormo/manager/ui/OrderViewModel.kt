@@ -12,6 +12,7 @@ import com.ormo.manager.data.RemovedMenu
 import com.ormo.manager.data.MockOrders
 import com.ormo.manager.data.OrderRepository
 import com.ormo.manager.data.TransitionResult
+import com.ormo.manager.domain.businessDayStartOf
 import com.ormo.manager.domain.AUTO_CANCEL_MILLIS
 import com.ormo.manager.domain.MenuItem
 import com.ormo.manager.domain.OptionGroup
@@ -36,6 +37,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 
 /** 열려 있는 확인창 */
 sealed interface OrderDialog {
@@ -94,7 +96,7 @@ data class OrderUiState(
     val preparing: List<Order> = emptyList(),
     /** 픽업 대기 */
     val ready: List<Order> = emptyList(),
-    /** 오늘 내역. 최근 주문이 위 */
+    /** 오늘 내역(영업일 기준). 최근 주문이 위 */
     val history: List<Order> = emptyList(),
     val dialog: OrderDialog? = null,
     val undo: UndoState? = null,
@@ -150,6 +152,7 @@ class OrderViewModel(
     private val paymentGateway: PaymentGateway,
     private val clock: () -> Long = System::currentTimeMillis,
     private val menuRepository: InMemoryMenuRepository = InMemoryMenuRepository(),
+    private val zone: ZoneId = ZoneId.systemDefault(),
 ) : ViewModel() {
 
     /** 매출 계산에 쓰는 전체 주문 */
@@ -160,6 +163,9 @@ class OrderViewModel(
     private val dialog = MutableStateFlow<OrderDialog?>(null)
     private val undo = MutableStateFlow<UndoState?>(null)
     private val store = MutableStateFlow(StoreState())
+
+    /** 이보다 먼저 끝난 주문은 오늘 내역에 보이지 않는다. 영업을 시작할 때 그날의 시작으로 옮긴다. */
+    private val historyFrom = MutableStateFlow(0L)
     private var undoJob: Job? = null
     private val connected = MutableStateFlow(true)
     private val load = MutableStateFlow(BoardLoad.DONE)
@@ -245,6 +251,9 @@ class OrderViewModel(
             )
         }.combine(connected) { state, isConnected -> state.copy(offline = !isConnected) }
             .combine(load) { state, load -> state.copy(load = load, offline = state.offline || load == BoardLoad.SLOW) }
+            .combine(historyFrom) { state, from ->
+                state.copy(history = state.history.filter { (it.closedAt ?: it.updatedAt) >= from })
+            }
             .stateIn(viewModelScope, SharingStarted.Eagerly, OrderUiState())
 
     // ---- 서비스 점검 (Figma 5.2.1) --------------------------------------------------------
@@ -399,6 +408,8 @@ class OrderViewModel(
             is StoreStatus.Paused -> OrderEvent.StoreResumed(automatic = false)
         }
         if (blockedOffline()) return
+        // 마감에서 시작할 때만 비운다. 같은 날 다시 열면 그날 내역은 남아 환불할 수 있다.
+        if (event == OrderEvent.StoreStarted) historyFrom.value = businessDayStartOf(clock(), zone)
         store.value = StoreState(StoreStatus.Open)
         emit(event)
     }
