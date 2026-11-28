@@ -12,6 +12,14 @@ sealed interface LoginResult {
     data class Locked(val retryAfterSeconds: Int) : LoginResult
 }
 
+/** 설정에서 비밀번호를 바꾸는 요청에 대한 서버의 답 */
+sealed interface PasswordChangeResult {
+    data object Changed : PasswordChangeResult
+
+    /** 현재 비밀번호가 틀렸다. */
+    data object WrongCurrent : PasswordChangeResult
+}
+
 /**
  * 매장 계정 인증. 백엔드를 붙일 때 이 인터페이스의 구현만 바꾼다.
  * 실패(Result.failure)는 통신 오류처럼 답을 받지 못한 경우다.
@@ -20,7 +28,11 @@ sealed interface LoginResult {
 interface AuthGateway {
     suspend fun login(id: String, password: String): Result<LoginResult>
 
+    /** 첫 로그인: 방금 로그인했으므로 새 비밀번호만 보낸다. */
     suspend fun changePassword(newPassword: String): Result<Unit>
+
+    /** 설정에서 바꾸기: 현재 비밀번호를 함께 확인한다. 여러 번 틀릴 때의 제한은 서버가 정한다. */
+    suspend fun changePasswordWithCurrent(currentPassword: String, newPassword: String): Result<PasswordChangeResult>
 
     suspend fun logout()
 }

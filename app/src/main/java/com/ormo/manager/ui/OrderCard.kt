@@ -31,6 +31,9 @@ fun pickupMethodText(method: PickupMethod): String = stringResource(
     },
 )
 
+/** 카드 맨 아래의 빈 여백 */
+internal val OrderCardBottomPadding = 20.dp
+
 /**
  * Figma "Order Card". 머리 = 픽업 번호 + 수령 방법·이름 + 오른쪽 상태, 본문 = 메뉴, 아래 = 버튼.
  * 금액은 카드에 보이지 않는다. 하단 버튼 영역은 열마다 다르므로 [actions] 슬롯으로 받는다.
@@ -106,7 +109,7 @@ fun OrderCard(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 20.dp),
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = OrderCardBottomPadding),
             content = actions,
         )
     }

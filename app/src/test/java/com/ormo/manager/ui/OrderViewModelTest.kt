@@ -36,6 +36,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class OrderViewModelTest {
@@ -611,6 +612,52 @@ class OrderViewModelTest {
         vm.onOpenStore()
         vm.onOpenStore()
         assertEquals(listOf<OrderEvent>(OrderEvent.StoreResumed(automatic = false)), events)
+    }
+
+    /** 시간대를 고정해 날짜가 바뀌는 때를 정한다. [START]는 UTC 1970-01-02 03:46이다. */
+    private fun viewModelInUtc(vararg orders: Order) = OrderViewModel(
+        InMemoryOrderRepository(orders.toList()) { now },
+        gateway,
+        { now },
+        zone = ZoneOffset.UTC,
+    )
+
+    private fun OrderViewModel.historyNos() = uiState.value.history.map { it.orderNo }.toSet()
+
+    @Test
+    fun startingTheStore_onTheSameDay_keepsTodaysHistory() = runTest {
+        val vm = viewModelInUtc(order("A", OrderStatus.COMPLETED))
+        vm.closeStore()
+        now = START + 60 * 60_000L
+        vm.onOpenStore()
+        assertEquals(setOf("A"), vm.historyNos())
+    }
+
+    @Test
+    fun startingTheStore_onANewDay_emptiesEarlierHistory_butNotUnfinishedOrders() = runTest {
+        val vm = viewModelInUtc(order("A", OrderStatus.COMPLETED), order("B", OrderStatus.ACCEPTED))
+        vm.closeStore()
+        now = START + 24 * 60 * 60_000L
+        assertEquals("영업을 시작하기 전에는 남아 있다", setOf("A"), vm.historyNos())
+
+        vm.onOpenStore()
+        assertEquals(emptySet<String>(), vm.historyNos())
+        assertEquals(listOf("B"), vm.uiState.value.preparing.map { it.orderNo })
+
+        // 전날 받은 주문도 오늘 끝나면 오늘 내역에 쌓인다.
+        vm.onCooked("B")
+        vm.onPickedUp("B")
+        assertEquals(setOf("B"), vm.historyNos())
+    }
+
+    @Test
+    fun resumingFromPause_onANewDay_doesNotEmptyHistory() = runTest {
+        val vm = viewModelInUtc(order("A", OrderStatus.COMPLETED))
+        vm.onPauseClick()
+        vm.onPauseConfirm(null, PauseReason.PREPARING)
+        now = START + 24 * 60 * 60_000L
+        vm.onOpenStore()
+        assertEquals(setOf("A"), vm.historyNos())
     }
 
     @Test

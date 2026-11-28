@@ -35,6 +35,8 @@ data class MenuItem(
     val optionGroups: List<String> = emptyList(),
     /** 고객 앱에서 숨긴 메뉴. 품절(오늘만)과 달리 오래 팔지 않을 때 쓴다. */
     val hidden: Boolean = false,
+    /** 메뉴 사진(선택). 지금은 앱 캐시의 파일 경로, 서버를 붙이면 서버가 주는 값 */
+    val photo: String? = null,
 )
 
 /** 이 옵션 그룹을 쓰는 메뉴 수 */

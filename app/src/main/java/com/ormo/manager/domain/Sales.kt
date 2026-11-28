@@ -57,10 +57,18 @@ private val paidStatuses = setOf(
 /**
  * 오늘 영업일의 매출은 앱에 있는 주문에서 계산한다. 환불하면 환불 칸에 바로 반영된다.
  *
+ * 앱을 켜 둔 채 날이 바뀌면 지난 주문이 남아 있으므로, 오늘 접수한 주문만 센다.
+ *
+ * @param dateOf 접수 시각(epoch millis)의 영업일
  * @param hourOf 접수 시각(epoch millis)의 시(0~23)
  */
-fun todaySales(today: LocalDate, orders: List<Order>, hourOf: (Long) -> Int): DaySales {
-    val paid = orders.filter { it.status in paidStatuses }
+fun todaySales(
+    today: LocalDate,
+    orders: List<Order>,
+    dateOf: (Long) -> LocalDate,
+    hourOf: (Long) -> Int,
+): DaySales {
+    val paid = orders.filter { it.status in paidStatuses && dateOf(it.createdAt) == today }
     val refunded = paid.filter { it.status == OrderStatus.REFUNDED }
     return DaySales(
         date = today,

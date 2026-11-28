@@ -66,7 +66,11 @@ import com.ormo.manager.ui.theme.OrmoType
 import kotlinx.coroutines.delay
 
 private const val ID_LIMIT = 50
-private const val PASSWORD_LIMIT = 64
+internal const val PASSWORD_LIMIT = 64
+
+/** 치는 중에는 앞부분이 같으면 아직 다르다고 하지 않는다. */
+internal fun isConfirmMismatch(password: String, confirm: String, confirmFocused: Boolean): Boolean =
+    confirm.isNotEmpty() && confirm != password && (!confirmFocused || !password.startsWith(confirm))
 
 /** 로그인 전 화면. 사업자 정보 푸터는 여기에서도 항상 보인다. */
 @Composable
@@ -215,9 +219,7 @@ private fun ChangePasswordForm(state: LoginUiState, onChange: (String, String) -
     var confirm by remember { mutableStateOf("") }
     var confirmFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
-    // 치는 중에는 앞부분이 같으면 아직 다르다고 하지 않는다.
-    val mismatch = confirm.isNotEmpty() && confirm != password &&
-        (!confirmFocused || !password.startsWith(confirm))
+    val mismatch = isConfirmMismatch(password, confirm, confirmFocused)
     val canSubmit = isValidPassword(password) && password == confirm && !state.inProgress
     val submit = {
         if (canSubmit) {
@@ -238,10 +240,7 @@ private fun ChangePasswordForm(state: LoginUiState, onChange: (String, String) -
                 imeAction = ImeAction.Next,
                 onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Rule(stringResource(R.string.password_rule_length), isLongEnoughPassword(password))
-                Rule(stringResource(R.string.password_rule_mix), hasLetterAndDigit(password))
-            }
+            PasswordRules(password)
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AuthField(
@@ -290,7 +289,7 @@ private fun Head(title: String) {
 
 /** 라벨 + 높이 56 입력칸. 비밀번호 칸은 눈 아이콘으로 보기를 켜고 끈다. */
 @Composable
-private fun AuthField(
+internal fun AuthField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
@@ -377,7 +376,7 @@ private fun AuthField(
 }
 
 @Composable
-private fun FieldError(text: String) {
+internal fun FieldError(text: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Icon(
             painter = painterResource(R.drawable.ic_alert),
@@ -386,6 +385,15 @@ private fun FieldError(text: String) {
             modifier = Modifier.size(16.dp),
         )
         Text(text, style = OrmoType.BodySmRegular, color = OrmoColors.TextDanger)
+    }
+}
+
+/** 새 비밀번호가 지켜야 하는 규칙 두 가지 */
+@Composable
+internal fun PasswordRules(password: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Rule(stringResource(R.string.password_rule_length), isLongEnoughPassword(password))
+        Rule(stringResource(R.string.password_rule_mix), hasLetterAndDigit(password))
     }
 }
 

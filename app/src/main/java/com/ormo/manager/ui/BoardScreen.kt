@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -87,6 +88,9 @@ fun BoardScreen(
     /** 인터넷이 끊기면 카드 버튼을 흐리게 보인다. */
     offline: Boolean = false,
     load: BoardLoad = BoardLoad.DONE,
+    /** 왼쪽 아래에 계속 떠 있는 알림에 가리는 높이. 카드 목록과 [↓]가 그 위에서 끝난다. */
+    pendingInset: Dp = 0.dp,
+    preparingInset: Dp = 0.dp,
 ) {
     if (load != BoardLoad.DONE) {
         LoadingBoard(showSkeleton = load != BoardLoad.WAITING, modifier = modifier)
@@ -110,6 +114,7 @@ fun BoardScreen(
             ),
             scrollToEnd = showNewestPending,
             onScrolledToEnd = onNewestPendingShown,
+            bottomInset = pendingInset,
         ) { order -> PendingCard(order, now, actions, offline) }
 
         OrderColumn(
@@ -118,6 +123,7 @@ fun BoardScreen(
             countColor = OrmoColors.TextTertiary,
             emptyIcon = R.drawable.ic_cup,
             emptyText = stringResource(R.string.empty_preparing),
+            bottomInset = preparingInset,
         ) { order -> PreparingCard(order, now, actions, offline) }
 
         OrderColumn(
@@ -287,6 +293,7 @@ private fun RowScope.OrderColumn(
     emptyText: String,
     scrollToEnd: Boolean = false,
     onScrolledToEnd: () -> Unit = {},
+    bottomInset: Dp = 0.dp,
     card: @Composable (Order) -> Unit,
 ) {
     Column(
@@ -315,7 +322,7 @@ private fun RowScope.OrderColumn(
                 EmptyResult(icon = emptyIcon, title = emptyText)
             }
         } else {
-            ScrollableCards(title, orders, scrollToEnd, onScrolledToEnd, card)
+            ScrollableCards(title, orders, scrollToEnd, onScrolledToEnd, bottomInset, card)
         }
     }
 }
@@ -327,6 +334,7 @@ private fun ScrollableCards(
     orders: List<Order>,
     scrollToEnd: Boolean,
     onScrolledToEnd: () -> Unit,
+    bottomInset: Dp,
     card: @Composable (Order) -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -337,16 +345,19 @@ private fun ScrollableCards(
             onScrolledToEnd()
         }
     }
-    // 아래 여백만 넘치는 경우는 빼고, 마지막 카드가 다 보이지 않을 때만 버튼을 띄운다.
-    val hasHiddenCards by remember(orders.size) {
+    // 목록의 아래 여백이나 마지막 카드 안의 빈 여백만 넘치는 경우는 빼고, 내용이 가려질 때만 버튼을 띄운다.
+    // (여백만 가려졌는데 띄우면 [↓]가 그 카드의 버튼을 덮는다.)
+    val cardBottomPadding = with(LocalDensity.current) { OrderCardBottomPadding.roundToPx() }
+    val hasHiddenCards by remember(orders.size, cardBottomPadding) {
         derivedStateOf {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull()
             last != null &&
-                (last.index < orders.lastIndex || last.offset + last.size > info.viewportEndOffset)
+                (last.index < orders.lastIndex ||
+                    last.offset + last.size - info.viewportEndOffset > cardBottomPadding)
         }
     }
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().padding(bottom = bottomInset)) {
         LazyColumn(
             state = listState,
             verticalArrangement = Arrangement.spacedBy(12.dp),

@@ -4,6 +4,7 @@ import com.ormo.manager.auth.AuthGateway
 import com.ormo.manager.auth.FAKE_FAILING_ID
 import com.ormo.manager.auth.FakeAuthGateway
 import com.ormo.manager.auth.LoginResult
+import com.ormo.manager.auth.PasswordChangeResult
 import com.ormo.manager.domain.isValidPassword
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -106,7 +107,112 @@ class LoginViewModelTest {
 
         override suspend fun changePassword(newPassword: String) = Result.success(Unit)
 
+        /** 설정의 비밀번호 바꾸기 답. 시험에서 채우기 전에는 기다린다. */
+        var changeGate = CompletableDeferred<Result<PasswordChangeResult>>()
+        var changes = 0
+
+        override suspend fun changePasswordWithCurrent(
+            currentPassword: String,
+            newPassword: String,
+        ): Result<PasswordChangeResult> {
+            changes += 1
+            return changeGate.await()
+        }
+
         override suspend fun logout() = Unit
+    }
+
+    private val newPassword = "wxyz" + "5678"
+
+    private fun signedIn(gateway: AuthGateway = FakeAuthGateway()): LoginViewModel {
+        val vm = viewModel(gateway)
+        vm.login("any", "x")
+        if (vm.uiState.value.step == AuthStep.CHANGE_PASSWORD) vm.changePassword(password, password)
+        return vm
+    }
+
+    private fun signedInStub(): Pair<LoginViewModel, StubGateway> {
+        val gateway = StubGateway(CompletableDeferred(Result.success(LoginResult.Success(firstLogin = false))))
+        return signedIn(gateway) to gateway
+    }
+
+    @Test
+    fun passwordChange_closesAndNotifiesOnce() {
+        val vm = signedIn()
+        vm.openPasswordChange()
+        assertTrue(vm.passwordChange.value.open)
+
+        vm.changeOwnPassword("", newPassword, newPassword)
+        vm.changeOwnPassword(password, "short", "short")
+        vm.changeOwnPassword(password, newPassword, newPassword + "x")
+        assertEquals(PasswordChangeUiState(open = true), vm.passwordChange.value)
+
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        assertEquals(PasswordChangeUiState(changed = true), vm.passwordChange.value)
+        vm.onPasswordChangedShown()
+        assertEquals(PasswordChangeUiState(), vm.passwordChange.value)
+    }
+
+    @Test
+    fun passwordChange_wrongCurrent_staysOpenUntilTypedAgain() {
+        val vm = signedIn()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(FAKE_FAILING_ID, newPassword, newPassword)
+        assertTrue(vm.passwordChange.value.open)
+        assertEquals(PasswordChangeError.WRONG_CURRENT, vm.passwordChange.value.error)
+        assertEquals(1, vm.passwordChange.value.rejections)
+
+        vm.onPasswordChangeInput()
+        assertNull(vm.passwordChange.value.error)
+        vm.closePasswordChange()
+        vm.openPasswordChange()
+        assertEquals(PasswordChangeUiState(open = true), vm.passwordChange.value)
+    }
+
+    @Test
+    fun passwordChange_sendsOnce_andKeepsWaitingAcrossReopen() {
+        val (vm, gateway) = signedInStub()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        vm.closePasswordChange()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        assertEquals(1, gateway.changes)
+        assertTrue(vm.passwordChange.value.inProgress)
+
+        gateway.changeGate.complete(Result.failure(RuntimeException("network")))
+        assertEquals(PasswordChangeError.UNAVAILABLE, vm.passwordChange.value.error)
+        assertFalse(vm.passwordChange.value.inProgress)
+    }
+
+    @Test
+    fun passwordChange_answeredAfterClosing_notifiesOnlyWhenChanged() {
+        val (vm, gateway) = signedInStub()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        vm.closePasswordChange()
+        gateway.changeGate.complete(Result.success(PasswordChangeResult.WrongCurrent))
+        assertEquals(PasswordChangeUiState(), vm.passwordChange.value)
+
+        gateway.changeGate = CompletableDeferred()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        vm.closePasswordChange()
+        gateway.changeGate.complete(Result.success(PasswordChangeResult.Changed))
+        assertTrue(vm.passwordChange.value.changed)
+    }
+
+    @Test
+    fun logout_dropsAWaitingPasswordChange() {
+        val (vm, gateway) = signedInStub()
+        vm.openPasswordChange()
+        vm.changeOwnPassword(password, newPassword, newPassword)
+        vm.logout()
+        gateway.changeGate.complete(Result.success(PasswordChangeResult.Changed))
+        assertEquals(PasswordChangeUiState(), vm.passwordChange.value)
+        vm.openPasswordChange()
+        assertFalse("로그인 전에는 열리지 않는다", vm.passwordChange.value.open)
     }
 
     @Test

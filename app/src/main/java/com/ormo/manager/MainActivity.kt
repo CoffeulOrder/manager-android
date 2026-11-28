@@ -18,6 +18,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ormo.manager.auth.FakeAuthGateway
+import com.ormo.manager.data.InMemorySalesSource
+import com.ormo.manager.data.LocalMenuPhotoStore
 import com.ormo.manager.domain.ORMO_BUSINESS_INFO
 import com.ormo.manager.network.connectivityFlow
 import com.ormo.manager.service.InMemoryServiceStatusSource
@@ -27,9 +29,11 @@ import com.ormo.manager.ui.LoginViewModel
 import com.ormo.manager.ui.ManagerScreen
 import com.ormo.manager.ui.OrderViewModel
 import com.ormo.manager.ui.PinViewModel
+import com.ormo.manager.ui.SalesViewModel
 import com.ormo.manager.ui.ServiceViewModel
 import com.ormo.manager.ui.SettingsViewModel
 import com.ormo.manager.ui.theme.OrmoTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +63,10 @@ class MainActivity : ComponentActivity() {
                     // 백엔드를 붙일 때 InMemoryServiceStatusSource를 실제 구현으로 바꾼다.
                     val serviceViewModel: ServiceViewModel =
                         viewModel { ServiceViewModel(InMemoryServiceStatusSource()) }
+                    // 백엔드를 붙일 때 InMemorySalesSource를 실제 구현으로 바꾼다.
+                    val salesViewModel: SalesViewModel = viewModel { SalesViewModel(InMemorySalesSource()) }
+                    // 백엔드를 붙일 때 사진 올리기 구현으로 바꾼다.
+                    val photoStore = remember { LocalMenuPhotoStore(File(cacheDir, "menu_photos")) }
                     val connectivity = remember { connectivityFlow(applicationContext) }
                     LaunchedEffect(viewModel) { connectivity.collect(viewModel::onConnectionChange) }
                     // 이 화면에 들어올 때(로그인할 때)마다 주문을 불러온다.
@@ -68,6 +76,9 @@ class MainActivity : ComponentActivity() {
                         pinViewModel = pinViewModel,
                         settingsViewModel = settingsViewModel,
                         serviceViewModel = serviceViewModel,
+                        salesViewModel = salesViewModel,
+                        photoStore = photoStore,
+                        loginViewModel = loginViewModel,
                         businessInfo = ORMO_BUSINESS_INFO,
                         onLogout = loginViewModel::logout,
                     )
